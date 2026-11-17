@@ -16,6 +16,13 @@
 - Actions: write (only for `workflow_dispatch` and cancelling agent runs)
 - Metadata: read
 
+## Development login
+
+`AUTH_DEV_LOGIN` adds a password-less "Development login" button. It is only
+active when `NODE_ENV` is `development` (`npm run dev`). `next build` and all
+Vercel deployments run in production mode, so the button and the provider do
+not exist there. Never set `AUTH_DEV_LOGIN` in Vercel.
+
 ## Rules
 
 - **Only the owner merges.** The merge endpoint requires a session for an

@@ -14,7 +14,7 @@ owner and several AI agents.
 
 - **Projects** map to one GitHub repository and one Vercel project.
 - **Tasks** have a name, description, acceptance criteria, priority, type,
-  labels, and a status that moves across a board.
+  labels, and a status. Tasks are listed vertically, grouped by status.
 - **Agents** pick up tasks, work on a branch, open a PR, and move the task to
   review. Analyzer and reviewer agents create new tasks for problems they find.
 - **The human** creates tasks, prioritizes, and approves or rejects changes.
@@ -42,7 +42,8 @@ owner and several AI agents.
 ## In scope (v1)
 
 - Single owner, multiple projects, GitHub and Vercel integration.
-- Kanban board and list view, task detail with an activity timeline.
+- Vertical task list grouped by status, priority, or type, and a task detail
+  page with an activity timeline.
 - Review queue with PR link, preview deployment, CI checks, agent findings.
 - Approve (merge) and request changes from inside the app.
 - Agent access through an MCP server and a REST API with project tokens.

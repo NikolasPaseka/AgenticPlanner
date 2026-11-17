@@ -35,7 +35,7 @@ PostgreSQL through Drizzle. Every table has `id` (uuid), `created_at`, and
 | `on_hold` | Boolean. When true, the auto-dispatcher skips the task and agents cannot claim it |
 | `branch_name`, `pr_number`, `pr_url` | Set when work starts and the PR opens |
 | `preview_url`, `checks_status` | Filled from webhooks |
-| `position` | Ordering within a board column |
+| `position` | Manual ordering within a group (after priority) |
 
 ### agent_run
 One execution of an agent on a task.

@@ -5,6 +5,10 @@ Record architecture decisions here, newest first. Status is `proposed`,
 
 | # | Date | Decision | Status |
 |---|------|----------|--------|
+| 13 | 2026-11-17 | Local first: embedded Postgres (PGlite) for local dev and tests, a development-only login, and Playwright end-to-end tests per milestone | accepted |
+| 12 | 2026-11-17 | UI uses small hand-written Tailwind components; add shadcn/ui only if components grow complex | accepted |
+| 11 | 2026-11-17 | Neon WebSocket pool (not HTTP) so services can use interactive transactions; node-postgres for localhost | accepted |
+| 10 | 2026-11-17 | Tasks are shown as a vertical list grouped by status, priority, or type instead of a kanban board | accepted |
 | 9 | 2026-11-17 | Owner controls: global agents switch, Stop (cancels the Actions run, keeps the branch, puts the task on hold), per-task hold | accepted |
 | 8 | 2026-11-17 | Single owner; no teams or roles in v1 | accepted |
 | 7 | 2026-11-17 | Auto-dispatch: `todo` tasks are picked up automatically by priority, limited by max parallel runs (default 1); merge method is merge commit | accepted |
@@ -13,7 +17,7 @@ Record architecture decisions here, newest first. Status is `proposed`,
 | 4 | 2026-11-17 | Agents run in GitHub Actions with Claude Code, not in Vercel functions | accepted |
 | 3 | 2026-11-17 | Agents talk to the app through an MCP server plus REST, with project tokens | accepted |
 | 2 | 2026-11-17 | PostgreSQL on Neon with Drizzle ORM  | accepted |
-| 1 | 2026-11-17 | Next.js App Router + TypeScript on Vercel, Tailwind + shadcn/ui | accepted |
+| 1 | 2026-11-17 | Next.js App Router + TypeScript on Vercel, Tailwind + shadcn/ui | superseded by 12 |
 
 ## Template
 

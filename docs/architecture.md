@@ -5,7 +5,7 @@
 ```
                       +-------------------------------------------+
  Owner (browser) ---> | AgentPlanner (Next.js on Vercel)          |
-                      |  - UI: board, task detail, review queue   |
+                      |  - UI: task list, task detail, review    |
                       |  - REST API      /api/v1/*                |
                       |  - MCP server    /api/mcp                 |
                       |  - Webhooks      /api/webhooks/github     |
@@ -76,9 +76,14 @@ kept. The `workflow_run` webhook confirms the cancellation.
 
 ```
 app/
-  (dashboard)/projects/[projectSlug]/board
-  (dashboard)/projects/[projectSlug]/tasks/[taskKey]
-  (dashboard)/projects/[projectSlug]/review
+src/app/
+  (app)/page.tsx                                  projects
+  (app)/projects/[slug]/page.tsx                  grouped task list
+  (app)/projects/[slug]/tasks/[number]/page.tsx   task detail
+  (app)/projects/[slug]/settings/page.tsx         project settings
+  (app)/projects/[slug]/review/                   review queue (M3)
+  actions.ts                                      server actions (owner-checked)
+  signin/
   api/v1/...                REST for agents and integrations
   api/mcp/route.ts          MCP server (Streamable HTTP)
   api/webhooks/github/      GitHub App webhook receiver

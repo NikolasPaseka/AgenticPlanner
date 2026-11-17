@@ -1,0 +1,86 @@
+# Testing
+
+Every milestone is tested locally before it is deployed to Vercel.
+
+## Test layers
+
+| Layer | Command | What it covers | Needs |
+|-------|---------|----------------|-------|
+| Unit | `npm test` | State machine, dispatch rules, services against an in-memory Postgres (PGlite) with the real migrations | Nothing |
+| End-to-end | `npm run test:e2e` | The real app in Chrome: sign-in, forms, buttons, layout | Google Chrome installed; no other `next dev` running |
+| Static | `npm run lint`, `npm run typecheck`, `npm run build` | Code quality, types, Next.js build rules | Nothing |
+
+CI runs all of them on every pull request.
+
+`npm run test:e2e` starts its own throwaway database and dev server on ports
+55433 and 3101, signs in with the development login, and runs the specs in
+[e2e/](../e2e/). Use `npx playwright test --ui` to watch the tests run.
+
+## Running the app locally
+
+```bash
+npm run db:local     # terminal 1: embedded Postgres on localhost:5432, migrations applied
+npm run dev          # terminal 2: http://localhost:3000
+```
+
+`.env.local` needs:
+
+```bash
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/postgres
+AUTH_SECRET=<run: npx auth secret>
+AUTH_DEV_LOGIN=<your GitHub login>   # enables "Development login" on the sign-in page
+OWNER_GITHUB_LOGINS=<your GitHub login>
+```
+
+The development login only works with `npm run dev`. Production builds and
+Vercel deployments ignore it. Local data is kept in `.pglite/`; delete the
+folder to start fresh.
+
+To test the real GitHub sign-in locally, create a second GitHub OAuth app
+with callback `http://localhost:3000/api/auth/callback/github` and set
+`AUTH_GITHUB_ID` and `AUTH_GITHUB_SECRET`.
+
+## Local test checklist per milestone
+
+Automated specs cover each item marked (auto). Check the others by hand
+before merging the milestone.
+
+### M1: Task board
+- [x] (auto) Signed-out visitors are redirected to sign-in.
+- [x] (auto) Create a project; a duplicate task key shows an error.
+- [x] (auto) Add tasks to Todo and Backlog; tasks are listed vertically in groups.
+- [x] (auto) Group by status, priority, or type; search by title or key.
+- [x] (auto) Edit a task; the timeline shows which fields changed.
+- [x] (auto) Move a task between statuses; put it on hold and release it.
+- [x] (auto) Comment on a task.
+- [x] (auto) Accept a task proposed by an agent.
+- [x] (auto) Global agents switch pauses and resumes, and the banner shows.
+- [x] (auto) Project settings save and reload.
+- [x] (auto) Pages fit a phone screen.
+- [ ] Sign in with your real GitHub account (needs the OAuth app).
+- [ ] A GitHub account not in `OWNER_GITHUB_LOGINS` is rejected.
+- [ ] Dark mode looks right.
+
+### M2: Agent API
+- [ ] Create and revoke an API token; a revoked token is rejected.
+- [ ] Claude Code on your machine connects to the MCP server and lists tasks.
+- [ ] An agent claims a Todo task; a held task or paused agents refuse the claim.
+- [ ] An agent proposes a task; it lands in "Proposed by agents".
+- [ ] An agent cannot merge, accept proposals, or flip the agents switch.
+
+### M3: GitHub integration
+- [ ] Install the GitHub App on a test repository and link it to a project.
+- [ ] A PR whose body contains `AgentPlanner: KEY-n` links to the task.
+- [ ] CI status appears on the task.
+- [ ] Approve merges the PR with a merge commit; Request changes comments on it.
+- Local webhooks need a tunnel, for example `npx smee-client` or `cloudflared`.
+
+### M4: Automated agents
+- [ ] With agents on and auto-dispatch on, a Todo task starts a workflow run.
+- [ ] Global switch off: nothing starts. Task on hold: it is skipped.
+- [ ] Stop cancels the Actions run, keeps the branch, and holds the task.
+- [ ] Request changes re-dispatches the developer agent.
+
+### M5: Vercel
+- [ ] The preview URL appears on the task when the PR deploys.
+- [ ] After merge, the production deploy moves the task to Done.

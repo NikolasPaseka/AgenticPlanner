@@ -1,17 +1,22 @@
 # Roadmap
 
-## M0: Foundations
+Each milestone is tested locally first (see [testing.md](testing.md)), then
+merged and deployed to Vercel.
+
+## M0: Foundations (done)
 - Confirm the stack (see [tech-stack.md](tech-stack.md) open questions).
-- Scaffold Next.js, Tailwind, shadcn/ui, Drizzle, Neon, Auth.js.
+- Scaffold Next.js, Tailwind, Drizzle, Neon, Auth.js.
 - Create the GitHub repo and Vercel project; preview and production deploys work.
 - CI: lint, typecheck, unit tests on every PR.
 
-## M1: Manual task board (MVP)
+## M1: Manual task board (built, testing locally)
 - Projects CRUD with task key prefix.
 - Tasks CRUD: title, description, acceptance criteria, priority, type, labels.
-- Kanban board with drag and drop, list view with filters.
+- Vertical task list grouped by status (or priority or type), with search and filters.
 - Task detail with comments and activity timeline.
 - State machine module with tests.
+- Global agents switch and per-task hold in the UI.
+- Local development login, embedded Postgres, and Playwright end-to-end tests.
 
 ## M2: Agent API
 - API tokens per project (create, revoke, scopes).

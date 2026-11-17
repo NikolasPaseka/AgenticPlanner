@@ -8,9 +8,10 @@ MongoDB, PostgreSQL.
 | Layer | Choice | Why |
 |-------|--------|-----|
 | Framework | **Next.js (App Router) + TypeScript** | Native on Vercel. Server actions and route handlers cover UI and API in one app. |
-| UI | **Tailwind CSS + shadcn/ui**, **dnd-kit** for the board | Fast to build, accessible components, drag-and-drop kanban. |
+| UI | **Tailwind CSS** with small hand-written components | Vertical task list grouped by status, priority, or type. No kanban. |
 | Database | **PostgreSQL on Neon** (Vercel Marketplace) | Relational data, transactional status changes, a database branch per preview deploy. |
-| ORM and migrations | **Drizzle ORM** + drizzle-kit | Typed SQL, light runtime, works well on serverless. |
+| ORM and migrations | **Drizzle ORM** + drizzle-kit | Typed SQL, light runtime, works well on serverless. Neon WebSocket pool for transactions. |
+| Local database | **PGlite** (`npm run db:local`) | Real Postgres in-process; no Docker or Neon needed for development. |
 | Human auth | **Auth.js with GitHub OAuth** | The owner's GitHub identity already owns the repos. |
 | Agent auth | Per-project API tokens, stored hashed | Simple, scoped, revocable. |
 | Git integration | **GitHub App** + Octokit | Fine-grained repo permissions, webhooks, merge API, short-lived installation tokens. |
@@ -19,7 +20,7 @@ MongoDB, PostgreSQL.
 | Realtime | Polling with TanStack Query first, SSE later | Enough for one user, no extra service. |
 | Background work | Webhook handlers + Vercel Cron; Inngest if it grows | No extra infrastructure in v1. |
 | Validation | Zod | One schema for forms, REST, and MCP tools. |
-| Testing | Vitest, Playwright | Unit and end-to-end. |
+| Testing | Vitest + PGlite, Playwright | Unit and service tests against in-memory Postgres; end-to-end in Chrome. See [testing.md](testing.md). |
 | Hosting | Vercel: preview per PR, production on `main` | The same pipeline the app manages for other projects. |
 
 ## PostgreSQL vs MongoDB

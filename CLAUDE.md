@@ -10,7 +10,7 @@ Read [README.md](README.md) and [docs/](docs/) before making changes.
 
 ## Current phase
 
-Milestone M0 (foundations). The stack is decided; see
+Milestone M1 (task board) is built and being tested locally. The stack is decided; see
 [docs/tech-stack.md](docs/tech-stack.md) and [docs/decisions.md](docs/decisions.md).
 
 ## Rules
@@ -31,5 +31,11 @@ Milestone M0 (foundations). The stack is decided; see
 - Database schema: `src/lib/db/schema.ts`. After changing it, run
   `npm run db:generate` and commit the migration in `drizzle/`.
 - Task state machine: `src/lib/domain/tasks.ts`, tested in `tasks.test.ts`.
+- Data access lives in `src/lib/services/`; services take a `Db` so tests can
+  pass an in-memory PGlite database (`src/test/db.ts`).
+- Every server action and page calls `requireOwner()` first.
+- Cache Components is on: dynamic data must render inside `<Suspense>` or a
+  `loading.tsx` boundary.
 - Before opening a PR run `npm run lint`, `npm run typecheck`, `npm test`,
-  and `npm run build`.
+  `npm run test:e2e`, and `npm run build`. Add an e2e spec for each milestone
+  and tick its checklist in [docs/testing.md](docs/testing.md).

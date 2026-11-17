@@ -56,7 +56,7 @@ test checklist are in [docs/testing.md](docs/testing.md).
 | `npm test` | Unit and service tests (in-memory Postgres) |
 | `npm run test:e2e` | End-to-end tests in Chrome against a throwaway database |
 | `npm run lint` / `typecheck` / `build` | Static checks that CI also runs |
-| `npm run db:local` | Embedded Postgres on localhost:5432 |
+| `npm run db:local` | Embedded Postgres on 127.0.0.1:54320 |
 | `npm run db:generate` | Create a migration after editing `src/lib/db/schema.ts` |
 | `npm run db:migrate` | Apply migrations to `DATABASE_URL` (e.g. Neon) |
 | `npm run db:studio` | Browse the database |

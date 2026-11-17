@@ -38,3 +38,6 @@ yarn-error.log*
 .pglite/
 test-results/
 playwright-report/
+
+# Keep the example env file
+!.env.example

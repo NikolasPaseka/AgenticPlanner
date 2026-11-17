@@ -19,14 +19,14 @@ CI runs all of them on every pull request.
 ## Running the app locally
 
 ```bash
-npm run db:local     # terminal 1: embedded Postgres on localhost:5432, migrations applied
+npm run db:local     # terminal 1: embedded Postgres on 127.0.0.1:54320, migrations applied
 npm run dev          # terminal 2: http://localhost:3000
 ```
 
 `.env.local` needs:
 
 ```bash
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/postgres
+DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54320/postgres
 AUTH_SECRET=<run: npx auth secret>
 AUTH_DEV_LOGIN=<your GitHub login>   # enables "Development login" on the sign-in page
 OWNER_GITHUB_LOGINS=<your GitHub login>

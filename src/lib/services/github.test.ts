@@ -245,3 +245,40 @@ describe("owner review actions", () => {
     expect(calls.map((c) => c.name)).toEqual(expect.arrayContaining(["comment", "closePullRequest"]));
   });
 });
+
+describe("Vercel deployments (GitHub deployment_status)", () => {
+  const deployment = (environment: string, state: string, extra: Partial<{ sha: string; ref: string; created_at: string; url: string }> = {}) => ({
+    repository: { name: "planner", owner: { login: "octo" } },
+    deployment: {
+      sha: extra.sha ?? "abc123",
+      ref: extra.ref ?? "agent/AP-1-add-login",
+      environment,
+      created_at: extra.created_at ?? new Date(Date.now() + 60_000).toISOString(),
+    },
+    deployment_status: { state, environment, environment_url: extra.url ?? "https://planner-git-agent.vercel.app" },
+  });
+
+  it("attaches the preview URL to the task on that branch", async () => {
+    await taskInReview();
+    await handleGitHubEvent(db, "deployment_status", deployment("Preview", "success"));
+    expect((await getTaskByNumber(db, project.id, 1)).previewUrl).toBe("https://planner-git-agent.vercel.app");
+    await handleGitHubEvent(db, "deployment_status", deployment("Preview", "failure"));
+    const last = (await getTimeline(db, (await getTaskByNumber(db, project.id, 1)).id)).at(-1);
+    expect(last?.kind === "event" && last.event.type).toBe("preview_failed");
+  });
+
+  it("marks merged tasks done after a later production deploy", async () => {
+    const t = await taskInReview();
+    const { gw } = fakeGitHub();
+    await approveAndMerge(db, gw, t.id, "abc123", owner);
+    // A deploy that started before the merge does not count.
+    await handleGitHubEvent(db, "deployment_status", deployment("Production", "success", { sha: "old", created_at: "2000-01-01T00:00:00Z" }));
+    expect((await getTaskByNumber(db, project.id, 1)).status).toBe("merged");
+    await handleGitHubEvent(db, "deployment_status", deployment("Production", "in_progress", { sha: "merge999" }));
+    expect((await getTaskByNumber(db, project.id, 1)).status).toBe("merged");
+    await handleGitHubEvent(db, "deployment_status", deployment("Production", "success", { sha: "merge999" }));
+    const done = await getTaskByNumber(db, project.id, 1);
+    expect(done.status).toBe("done");
+    expect(done.productionDeployedAt).not.toBeNull();
+  });
+});

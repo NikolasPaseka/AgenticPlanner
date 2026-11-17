@@ -48,6 +48,10 @@ function describeEvent(e: TaskEvent): string {
       return `merged pull request #${String(e.payload.prNumber ?? "")} outside the review flow`;
     case "checks_updated":
       return `reported checks ${String(e.payload.status ?? "")}`;
+    case "preview_ready":
+      return "deployed a preview";
+    case "preview_failed":
+      return "failed to deploy a preview";
     case "review_loop_stopped":
       return `stopped the review loop after ${String(e.payload.rounds ?? "several")} rounds; the task is on hold for you`;
     case "run_dispatched":
@@ -343,6 +347,7 @@ export default async function TaskPage({ params }: PageProps<"/projects/[slug]/t
                   </a>
                 </Meta>
               )}
+              {task.productionDeployedAt && <Meta label="In production">{timeAgo(task.productionDeployedAt)}</Meta>}
               {task.previewUrl && (
                 <Meta label="Preview">
                   <a href={task.previewUrl} target="_blank" rel="noreferrer" className="text-accent hover:underline">

@@ -5,6 +5,7 @@ Record architecture decisions here, newest first. Status is `proposed`,
 
 | # | Date | Decision | Status |
 |---|------|----------|--------|
+| 18 | 2026-11-17 | Deployment status comes from GitHub `deployment_status` events sent by Vercel's GitHub integration, not Vercel webhooks | accepted |
 | 17 | 2026-11-17 | Failed or stopped runs put the task on hold instead of retrying; agent review loops stop after 3 rounds | accepted |
 | 16 | 2026-11-17 | Dispatch is event-driven (after() on changes and webhooks) with Vercel Cron as a safety net, under a per-project advisory lock | accepted |
 | 15 | 2026-11-17 | Merges pass the reviewed head SHA; a PR merged on GitHub only counts as approval if an owner merged it | accepted |

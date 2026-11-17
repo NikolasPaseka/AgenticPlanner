@@ -121,6 +121,8 @@ export async function handleGitHubEvent(db: Db, name: string, payload: unknown):
     case "installation":
     case "installation_repositories":
       return handleInstallation(db, payload as InstallationPayload);
+    case "deployment_status":
+      return handleDeploymentStatus(db, payload as DeploymentStatusPayload);
     case "workflow_run":
       return handleWorkflowRun(db, payload as Parameters<typeof handleWorkflowRun>[1]);
     case "ping":
@@ -209,6 +211,67 @@ async function handleCheckSuite(db: Db, p: CheckSuitePayload): Promise<string> {
     }
   }
   return `checks updated on ${updated} task(s)`;
+}
+
+type DeploymentStatusPayload = {
+  repository: Repo;
+  deployment: { sha: string; ref: string; environment: string; created_at: string };
+  deployment_status: { state: string; environment_url?: string | null; target_url?: string | null; environment?: string };
+};
+
+/**
+ * Vercel's GitHub integration reports deployments to GitHub. A successful Preview
+ * attaches its URL to the task on that branch; a successful Production deploy marks
+ * every merged task whose merge happened before the deploy started as Done.
+ */
+async function handleDeploymentStatus(db: Db, p: DeploymentStatusPayload): Promise<string> {
+  const project = await findProjectByRepo(db, p.repository.owner.login, p.repository.name);
+  if (!project) return "no project for repository";
+  const { deployment, deployment_status: status } = p;
+  const environment = (status.environment ?? deployment.environment ?? "").toLowerCase();
+  const url = status.environment_url || status.target_url || null;
+  const deploySystem: Actor = { kind: "system", name: "vercel" };
+
+  if (environment.includes("production")) {
+    if (status.state !== "success") return `production ${status.state}`;
+    const merged = await db
+      .select()
+      .from(tasks)
+      .where(
+        and(
+          eq(tasks.projectId, project.id),
+          eq(tasks.status, "merged"),
+          sql`(${tasks.mergeCommitSha} = ${deployment.sha} or ${tasks.mergedAt} <= ${new Date(deployment.created_at)})`,
+        ),
+      );
+    for (const task of merged) {
+      await transitionTask(db, task.id, "done", deploySystem, { sha: deployment.sha.slice(0, 7), url: project.productionUrl ?? url });
+      await db.update(tasks).set({ productionDeployedAt: sql`now()` }).where(eq(tasks.id, task.id));
+    }
+    return `production deployed: ${merged.length} task(s) done`;
+  }
+
+  // Preview (or any other environment): match the task by branch or head commit.
+  const [task] = await db
+    .select()
+    .from(tasks)
+    .where(
+      and(
+        eq(tasks.projectId, project.id),
+        sql`(${tasks.branchName} = ${deployment.ref} or ${tasks.prHeadSha} = ${deployment.sha})`,
+      ),
+    );
+  if (!task) return "no task for deployment";
+  if (status.state === "success" && url && url !== task.previewUrl) {
+    await db.update(tasks).set({ previewUrl: url }).where(eq(tasks.id, task.id));
+    await event(db, task.id, deploySystem, "preview_ready", { url });
+    return `preview ready for ${formatTaskKey(project.key, task.number)}`;
+  }
+  if (status.state === "failure" || status.state === "error") {
+    await event(db, task.id, deploySystem, "preview_failed", { url: status.target_url ?? null });
+    return `preview failed for ${formatTaskKey(project.key, task.number)}`;
+  }
+  return `preview ${status.state}`;
 }
 
 async function handleInstallation(db: Db, p: InstallationPayload): Promise<string> {

@@ -57,15 +57,14 @@ kept. The `workflow_run` webhook confirms the cancellation.
 ### 4. Pipeline feedback
 - GitHub `pull_request` webhook links or confirms the PR on the task.
 - `check_suite` and `check_run` webhooks update CI status.
-- GitHub `deployment_status` (or Vercel `deployment.succeeded`) attaches the
-  preview URL.
+- GitHub `deployment_status`, sent by Vercel's GitHub integration, attaches
+  the preview URL.
 - A reviewer agent workflow runs on the PR, records findings through MCP, and
   may create follow-up tasks as proposals.
 
 ### 5. Owner decides
 - **Approve:** app merges the PR through the GitHub API, task becomes
-  `merged`. The Vercel production deploy webhook then moves it to `done` with
-  the production URL.
+  `merged`. The production `deployment_status` event then moves it to `done`.
 - **Request changes:** app posts a PR review comment, task becomes
   `changes_requested`, and the developer agent is re-dispatched with the
   feedback.
@@ -81,20 +80,25 @@ src/app/
   (app)/projects/[slug]/page.tsx                  grouped task list
   (app)/projects/[slug]/tasks/[number]/page.tsx   task detail
   (app)/projects/[slug]/settings/page.tsx         project settings
-  (app)/projects/[slug]/review/                   review queue (M3)
+  (app)/projects/[slug]/review/page.tsx           review queue
+  (app)/projects/[slug]/runs/page.tsx             agent runs
   actions.ts                                      server actions (owner-checked)
   signin/
-  api/v1/...                REST for agents and integrations
-  api/mcp/route.ts          MCP server (Streamable HTTP)
+  api/v1/[...path]/         REST for agents
+  api/mcp/route.ts          MCP server (Streamable HTTP, stateless)
   api/webhooks/github/      GitHub App webhook receiver
-  api/webhooks/vercel/      Vercel webhook receiver
-lib/
-  db/schema.ts              Drizzle schema
-  domain/tasks.ts           state machine, transitions, events
-  github/                   App auth, dispatch, merge
-  vercel/                   deployment lookups
-  mcp/tools.ts              MCP tool definitions (Zod)
+  api/cron/dispatch/        Vercel Cron dispatcher safety net
+src/lib/
+  db/                       Drizzle schema and client (Neon, node-postgres locally)
+  domain/tasks.ts           state machine and dispatch rules (pure functions)
+  services/                 data access and business rules; take a Db for tests
+    tasks, projects, settings, tokens, agents, github, dispatch
+  github/                   GitHub App gateway and webhook signatures
+  mcp/server.ts             MCP tool definitions
+  dispatch-trigger.ts       runs the dispatcher after a response
 templates/workflows/        GitHub Actions installed into target repos
+e2e/                        Playwright specs per milestone, fake GitHub API
+scripts/db-local.mts        embedded Postgres for local dev and tests
 docs/
 ```
 
@@ -103,8 +107,8 @@ docs/
 - One Vercel project for AgentPlanner, Neon added from the Vercel Marketplace.
 - Environment variables:
   `DATABASE_URL`, `AUTH_SECRET`, `AUTH_GITHUB_ID`, `AUTH_GITHUB_SECRET`,
-  `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`, `GITHUB_WEBHOOK_SECRET`,
-  `VERCEL_API_TOKEN`, `VERCEL_WEBHOOK_SECRET`.
+  `OWNER_GITHUB_LOGINS`, `GITHUB_APP_ID`, `GITHUB_APP_SLUG`,
+  `GITHUB_APP_PRIVATE_KEY`, `GITHUB_WEBHOOK_SECRET`, `CRON_SECRET`.
 - Each target repo needs the GitHub App installed, the workflow templates
   committed, and `ANTHROPIC_API_KEY` and `AGENTPLANNER_TOKEN` as Actions
   secrets. Its Vercel project must be connected to the repo with production

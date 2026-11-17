@@ -97,5 +97,10 @@ Automated tests use a fake GitHub API (`e2e/fake-github.mts`) and signed webhook
 - [ ] Request changes re-dispatches the developer, who updates the same PR.
 
 ### M5: Vercel
-- [ ] The preview URL appears on the task when the PR deploys.
-- [ ] After merge, the production deploy moves the task to Done.
+Vercel's GitHub integration reports deployments to GitHub; AgentPlanner reads
+them from the `deployment_status` webhook (no Vercel webhook or Pro plan needed).
+- [x] (auto) A successful Preview deployment attaches its URL to the task on that branch.
+- [x] (auto) After merge, a successful Production deployment moves the task to Done.
+- [x] (auto) Deployments that started before the merge do not count.
+- [ ] With the real GitHub App subscribed to Deployment status, a PR preview link appears in the review queue.
+- [ ] After approving, the task turns Done when Vercel finishes the production deploy.

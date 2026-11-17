@@ -87,13 +87,12 @@ Approve and merge, dispatch, accepting proposals, tokens, the global agents
 switch, stopping runs, and holds are server actions behind the owner's
 session. They are not reachable with tokens.
 
-## Webhooks (inbound, M3 and M5)
+## Webhooks and cron
 
 | Endpoint | Source | Events used |
 |----------|--------|-------------|
-| `/api/webhooks/github` | GitHub App | `pull_request`, `pull_request_review`, `check_suite`, `workflow_run`, `deployment_status`, `installation` |
-| `/api/webhooks/vercel` | Vercel | `deployment.succeeded`, `deployment.error` |
+| `/api/webhooks/github` | GitHub App | `pull_request`, `check_suite`, `workflow_run`, `deployment_status` (Vercel previews and production), `installation`, `installation_repositories` |
+| `/api/cron/dispatch` | Vercel Cron | Dispatcher safety net; requires `Authorization: Bearer $CRON_SECRET` |
 
-Both verify the signature header (`X-Hub-Signature-256`,
-`x-vercel-signature`) before parsing and store the delivery id to ignore
-duplicates.
+The webhook verifies `X-Hub-Signature-256` before parsing and stores the
+delivery id to ignore duplicates.

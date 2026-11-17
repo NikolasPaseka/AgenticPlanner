@@ -37,8 +37,14 @@ merged and deployed to Vercel.
 - Request changes re-dispatches the developer with feedback.
 - Reviewer runs automatically on agent PRs.
 
-## M5: Vercel and polish
-- Vercel webhooks: preview URL on tasks, `done` on production deploy.
-- Auto-dispatch option, parallel run limits, cost tracking.
-- Notifications (email or push) for blocked tasks and review requests.
-- Dogfooding: AgentPlanner manages its own repo.
+## M5: Vercel and polish (built, testing locally)
+- Preview URL on tasks and Done on production deploy, from GitHub
+  `deployment_status` events sent by Vercel's GitHub integration.
+- Auto-dispatch, parallel run limits, and run cost reporting (done in M4).
+
+## Next (needs decisions)
+- Notifications for blocked tasks and review requests: email (e.g. Resend),
+  web push, or Slack. Needs a provider choice.
+- Dogfooding: AgentPlanner manages its own repository. Needs the GitHub App,
+  secrets, and workflow templates installed in this repository.
+- Markdown rendering for task descriptions and comments.

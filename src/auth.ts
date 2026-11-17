@@ -6,17 +6,9 @@ import { connection } from "next/server";
 import { getDb } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import type { Actor } from "@/lib/services/actor";
+import { isOwnerLogin } from "@/lib/services/owners";
 
-export function ownerLogins(): string[] {
-  return (process.env.OWNER_GITHUB_LOGINS ?? "")
-    .split(",")
-    .map((l) => l.trim().toLowerCase())
-    .filter(Boolean);
-}
-
-export function isOwnerLogin(login: string | null | undefined): boolean {
-  return !!login && ownerLogins().includes(login.toLowerCase());
-}
+export { isOwnerLogin };
 
 /**
  * Local-only sign-in without GitHub, for development and screenshots.

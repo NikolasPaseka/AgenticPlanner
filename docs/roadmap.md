@@ -24,7 +24,7 @@ merged and deployed to Vercel.
 - Proposed tasks inbox for agent-created tasks.
 - Manual test: Claude Code on a laptop drives tasks through MCP.
 
-## M3: GitHub integration
+## M3: GitHub integration (built, testing locally)
 - GitHub App: install flow, link project to repo.
 - Webhooks: link PRs to tasks, show CI status.
 - Review queue page: PR, checks, findings, approve, request changes, reject.

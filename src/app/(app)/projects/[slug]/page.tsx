@@ -6,6 +6,7 @@ import { buttonClass, Card } from "@/components/ui";
 import { getDb } from "@/lib/db";
 import { getProjectBySlug } from "@/lib/services/projects";
 import { listTasks } from "@/lib/services/tasks";
+import { countReviewQueue } from "@/lib/services/github";
 import { orNotFound } from "@/lib/ui/load";
 import { PRIORITIES, TASK_TYPES } from "@/lib/validation";
 
@@ -24,7 +25,10 @@ export default async function ProjectPage({ params, searchParams }: PageProps<"/
   const q = one(sp.q).slice(0, 200);
   const closed = one(sp.closed) === "1";
 
-  const tasks = await listTasks(db, project, { q, priority, type, includeClosed: closed });
+  const [tasks, reviewCount] = await Promise.all([
+    listTasks(db, project, { q, priority, type, includeClosed: closed }),
+    countReviewQueue(db, project.id),
+  ]);
   const repo = project.githubOwner && project.githubRepo ? `${project.githubOwner}/${project.githubRepo}` : null;
 
   return (
@@ -51,9 +55,17 @@ export default async function ProjectPage({ params, searchParams }: PageProps<"/
             {!project.settings.autoDispatch && <span>Auto-dispatch off</span>}
           </p>
         </div>
-        <Link href={`/projects/${project.slug}/settings`} className={buttonClass("secondary")}>
-          Settings
-        </Link>
+        <div className="flex gap-2">
+          <Link
+            href={`/projects/${project.slug}/review`}
+            className={buttonClass(reviewCount > 0 ? "primary" : "secondary")}
+          >
+            Review{reviewCount > 0 && ` (${reviewCount})`}
+          </Link>
+          <Link href={`/projects/${project.slug}/settings`} className={buttonClass("secondary")}>
+            Settings
+          </Link>
+        </div>
       </div>
 
       <Card className="p-4">

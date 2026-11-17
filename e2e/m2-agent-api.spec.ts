@@ -1,41 +1,7 @@
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
-import { expect, test, type Page } from "@playwright/test";
-import { addTask, createProject, signIn, visible } from "./helpers";
+import { expect, test } from "@playwright/test";
+import { addTask, call, createProject, createToken, mcpClient, signIn, visible } from "./helpers";
 
 // Milestone 2: agent API (MCP + REST). See docs/testing.md.
-
-async function createToken(page: Page, slug: string, name: string, scopes?: string[]) {
-  await page.goto(`/projects/${slug}/settings`);
-  await visible(page.locator('input[name="name"][placeholder="claude-dev"]')).fill(name);
-  if (scopes) {
-    for (const box of await visible(page.locator('input[name="scopes"]')).all()) {
-      const value = await box.getAttribute("value");
-      if (!scopes.includes(value!)) await box.uncheck();
-    }
-  }
-  await visible(page.getByRole("button", { name: "Create token" })).click();
-  const token = (await visible(page.getByTestId("new-token")).textContent())!.trim();
-  expect(token).toMatch(/^ap_/);
-  return token;
-}
-
-async function mcpClient(baseURL: string, token: string) {
-  const client = new Client({ name: "e2e", version: "1.0.0" });
-  await client.connect(
-    new StreamableHTTPClientTransport(new URL("/api/mcp", baseURL), {
-      requestInit: { headers: { Authorization: `Bearer ${token}` } },
-    }),
-  );
-  return client;
-}
-
-type ToolOut = { content: { type: string; text: string }[]; isError?: boolean };
-async function call(client: Client, name: string, args: Record<string, unknown>) {
-  const res = (await client.callTool({ name, arguments: args })) as ToolOut;
-  const text = res.content[0]?.text ?? "";
-  return { isError: !!res.isError, text, json: res.isError ? null : JSON.parse(text) };
-}
 
 test.beforeEach(async ({ page }) => {
   await signIn(page);

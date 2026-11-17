@@ -5,6 +5,8 @@ Record architecture decisions here, newest first. Status is `proposed`,
 
 | # | Date | Decision | Status |
 |---|------|----------|--------|
+| 15 | 2026-11-17 | Merges pass the reviewed head SHA; a PR merged on GitHub only counts as approval if an owner merged it | accepted |
+| 14 | 2026-11-17 | GitHub access goes through a small gateway interface; tests use a fake GitHub API server | accepted |
 | 13 | 2026-11-17 | Local first: embedded Postgres (PGlite) for local dev and tests, a development-only login, and Playwright end-to-end tests per milestone | accepted |
 | 12 | 2026-11-17 | UI uses small hand-written Tailwind components; add shadcn/ui only if components grow complex | accepted |
 | 11 | 2026-11-17 | Neon WebSocket pool (not HTTP) so services can use interactive transactions; node-postgres for localhost | accepted |

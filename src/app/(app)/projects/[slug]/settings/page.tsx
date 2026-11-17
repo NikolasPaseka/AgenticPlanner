@@ -3,7 +3,9 @@ import Link from "next/link";
 import { requireOwner } from "@/auth";
 import { revokeApiTokenAction } from "@/app/actions";
 import { ProjectSettingsForm } from "@/components/forms";
+import { ConnectRepositoryButton } from "@/components/review";
 import { CreateTokenForm } from "@/components/tokens";
+import { githubAppInstallUrl, githubConfigured } from "@/lib/github/config";
 import { Badge, Button, Card } from "@/components/ui";
 import { getDb } from "@/lib/db";
 import { getProjectBySlug } from "@/lib/services/projects";
@@ -61,6 +63,49 @@ export default async function ProjectSettingsPage({ params }: PageProps<"/projec
       <Card className="p-4">
         <ProjectSettingsForm project={project} />
       </Card>
+
+      <section className="flex flex-col gap-3">
+        <div>
+          <h2 className="text-base font-semibold">GitHub</h2>
+          <p className="text-sm text-muted">
+            The AgentPlanner GitHub App links pull requests to tasks, reports checks, and merges approved changes.
+          </p>
+        </div>
+        <Card className="flex flex-col gap-3 p-4 text-sm">
+          {!githubConfigured() ? (
+            <p>
+              The GitHub App is not configured on this server. Set <code className="font-mono">GITHUB_APP_ID</code>,{" "}
+              <code className="font-mono">GITHUB_APP_PRIVATE_KEY</code>, and{" "}
+              <code className="font-mono">GITHUB_WEBHOOK_SECRET</code>. See docs/github-app.md.
+            </p>
+          ) : !project.githubOwner || !project.githubRepo ? (
+            <p>Enter the GitHub owner and repository above, save, then connect.</p>
+          ) : project.githubInstallationId ? (
+            <p>
+              <Badge className="text-emerald-700 dark:text-emerald-300">Connected</Badge>{" "}
+              {project.githubOwner}/{project.githubRepo} (installation {project.githubInstallationId})
+            </p>
+          ) : (
+            <>
+              <p>
+                Install the App on <span className="font-mono">{project.githubOwner}/{project.githubRepo}</span>
+                {githubAppInstallUrl() && (
+                  <>
+                    {" "}
+                    (
+                    <a href={githubAppInstallUrl()!} target="_blank" rel="noreferrer" className="text-accent hover:underline">
+                      install
+                    </a>
+                    )
+                  </>
+                )}
+                , then click Connect.
+              </p>
+              <ConnectRepositoryButton projectId={project.id} />
+            </>
+          )}
+        </Card>
+      </section>
 
       <section className="flex flex-col gap-3">
         <div>

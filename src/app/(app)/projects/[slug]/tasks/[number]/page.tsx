@@ -3,7 +3,7 @@ import { requireOwner } from "@/auth";
 import { setTaskHoldAction, transitionTaskAction } from "@/app/actions";
 import { CommentForm, EditTaskForm } from "@/components/forms";
 import { StatusBadge } from "@/components/task-list";
-import { Badge, Button, Card, cn } from "@/components/ui";
+import { Badge, Button, buttonClass, Card, cn } from "@/components/ui";
 import { getDb } from "@/lib/db";
 import { allowedTransitions, type TaskStatus } from "@/lib/domain/tasks";
 import { desc, eq } from "drizzle-orm";
@@ -35,6 +35,16 @@ function describeEvent(e: TaskEvent): string {
       return "put it on hold";
     case "hold_released":
       return "released the hold";
+    case "pr_linked":
+      return `linked pull request #${String(e.payload.prNumber ?? "")}`;
+    case "pr_updated":
+      return `pushed new commits (${String(e.payload.sha ?? "")})`;
+    case "pr_closed":
+      return `closed pull request #${String(e.payload.prNumber ?? "")}`;
+    case "pr_merged_outside":
+      return `merged pull request #${String(e.payload.prNumber ?? "")} outside the review flow`;
+    case "checks_updated":
+      return `reported checks ${String(e.payload.status ?? "")}`;
     case "branch_linked":
       return `linked branch ${String(e.payload.branch ?? "")}`;
     case "review_recorded": {
@@ -106,7 +116,9 @@ export default async function TaskPage({ params }: PageProps<"/projects/[slug]/t
     db.select().from(reviewsTable).where(eq(reviewsTable.taskId, task.id)).orderBy(desc(reviewsTable.createdAt)),
   ]);
   // Merging happens through the review flow once a PR exists (M3), never by a plain button.
-  const transitions = allowedTransitions(task.status, "owner").filter((s) => s !== "merged");
+  // In review, decisions go through the review queue so the PR is merged, commented, or closed too.
+  const transitions =
+    task.status === "in_review" ? [] : allowedTransitions(task.status, "owner").filter((s) => s !== "merged");
   const key = `${project.key}-${task.number}`;
 
   return (
@@ -220,6 +232,11 @@ export default async function TaskPage({ params }: PageProps<"/projects/[slug]/t
           <Card className="flex flex-col gap-3 p-4">
             <h2 className="text-sm font-semibold">Status</h2>
             <StatusBadge status={task.status} />
+            {task.status === "in_review" && (
+              <Link href={`/projects/${project.slug}/review`} className={buttonClass("primary", "sm")}>
+                Open in review queue
+              </Link>
+            )}
             {transitions.length > 0 && (
               <div className="flex flex-col gap-1.5">
                 {transitions.map((to) => (

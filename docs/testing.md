@@ -71,11 +71,17 @@ before merging the milestone.
 - [ ] Claude Code on your machine connects (see [agent-setup.md](agent-setup.md)) and finishes a small real task.
 
 ### M3: GitHub integration
-- [ ] Install the GitHub App on a test repository and link it to a project.
-- [ ] A PR whose body contains `AgentPlanner: KEY-n` links to the task.
-- [ ] CI status appears on the task.
-- [ ] Approve merges the PR with a merge commit; Request changes comments on it.
-- Local webhooks need a tunnel, for example `npx smee-client` or `cloudflared`.
+Automated tests use a fake GitHub API (`e2e/fake-github.mts`) and signed webhooks.
+- [x] (auto) Webhooks with a bad signature are rejected; duplicates are ignored.
+- [x] (auto) Connect finds the App installation, or explains that it is missing.
+- [x] (auto) A PR referencing `KEY-n` links to the task; checks show in the review queue.
+- [x] (auto) Approve merges with a merge commit at the reviewed commit, and deletes the agent branch.
+- [x] (auto) Approve refuses if new commits arrived, checks fail, or the PR has conflicts.
+- [x] (auto) Request changes comments on the PR; Reject closes it.
+- [x] (auto) A PR merged on GitHub by someone who is not the owner does not count as approval.
+- [ ] Create the real GitHub App ([github-app.md](github-app.md)), install it on a test repository, and connect.
+- [ ] Open a real PR with `AgentPlanner: KEY-n`; it links and shows checks.
+- [ ] Approve it in AgentPlanner; GitHub shows a merge commit by the App.
 
 ### M4: Automated agents
 - [ ] With agents on and auto-dispatch on, a Todo task starts a workflow run.

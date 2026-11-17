@@ -10,11 +10,9 @@
 
 ## GitHub App permissions
 
-- Contents: read and write (merge, delete branch)
-- Pull requests: read and write
-- Checks, Actions, Deployments: read
-- Actions: write (only for `workflow_dispatch` and cancelling agent runs)
-- Metadata: read
+See [github-app.md](github-app.md) for the full list and why each is needed.
+Merges pass the head commit the owner reviewed, so GitHub refuses the merge if
+an agent pushed after the review was opened.
 
 ## Development login
 

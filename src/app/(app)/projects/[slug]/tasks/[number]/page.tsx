@@ -2,6 +2,9 @@ import Link from "next/link";
 import { requireOwner } from "@/auth";
 import { setTaskHoldAction, transitionTaskAction } from "@/app/actions";
 import { CommentForm, EditTaskForm } from "@/components/forms";
+import { RunAgentNowButton, StopRunButton } from "@/components/runs";
+import { RunStatusBadge } from "@/components/run-status";
+import { githubConfigured } from "@/lib/github/config";
 import { StatusBadge } from "@/components/task-list";
 import { Badge, Button, buttonClass, Card, cn } from "@/components/ui";
 import { getDb } from "@/lib/db";
@@ -45,6 +48,18 @@ function describeEvent(e: TaskEvent): string {
       return `merged pull request #${String(e.payload.prNumber ?? "")} outside the review flow`;
     case "checks_updated":
       return `reported checks ${String(e.payload.status ?? "")}`;
+    case "review_loop_stopped":
+      return `stopped the review loop after ${String(e.payload.rounds ?? "several")} rounds; the task is on hold for you`;
+    case "run_dispatched":
+      return "started an agent run";
+    case "dispatch_failed":
+      return `could not start an agent run (${String(e.payload.message ?? "")}); the task is on hold`;
+    case "run_stopped":
+      return "stopped the agent run and put the task on hold";
+    case "run_ended_without_review": {
+      const how = String(e.payload.conclusion ?? "ended");
+      return `saw the agent run end (${how}) without a review; the task is on hold`;
+    }
     case "branch_linked":
       return `linked branch ${String(e.payload.branch ?? "")}`;
     case "review_recorded": {
@@ -120,6 +135,10 @@ export default async function TaskPage({ params }: PageProps<"/projects/[slug]/t
   const transitions =
     task.status === "in_review" ? [] : allowedTransitions(task.status, "owner").filter((s) => s !== "merged");
   const key = `${project.key}-${task.number}`;
+  const canRunNow =
+    githubConfigured() &&
+    !!project.githubInstallationId &&
+    (task.status === "todo" || task.status === "changes_requested");
 
   return (
     <div className="flex flex-col gap-6">
@@ -271,28 +290,30 @@ export default async function TaskPage({ params }: PageProps<"/projects/[slug]/t
                 {task.onHold ? "Release hold" : "Put on hold"}
               </Button>
             </form>
+            {canRunNow && <RunAgentNowButton taskId={task.id} />}
           </Card>
 
           {runs.length > 0 && (
             <Card className="flex flex-col gap-2 p-4">
               <h2 className="text-sm font-semibold">Agent runs</h2>
-              <ul className="flex flex-col gap-1.5 text-sm">
+              <ul className="flex flex-col gap-2.5 text-sm">
                 {runs.map((r) => (
-                  <li key={r.id} className="flex items-center justify-between gap-2">
-                    <span className="truncate">
-                      {r.agent} <span className="text-xs text-muted">({r.role})</span>
-                    </span>
-                    <Badge
-                      className={
-                        r.status === "running"
-                          ? "text-amber-700 dark:text-amber-300"
-                          : r.status === "succeeded"
-                            ? "text-emerald-700 dark:text-emerald-300"
-                            : "text-muted"
-                      }
-                    >
-                      {r.status}
-                    </Badge>
+                  <li key={r.id} className="flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="truncate">
+                        {r.githubRunUrl ? (
+                          <a href={r.githubRunUrl} target="_blank" rel="noreferrer" className="hover:underline">
+                            {r.agent}
+                          </a>
+                        ) : (
+                          r.agent
+                        )}{" "}
+                        <span className="text-xs text-muted">({r.role})</span>
+                      </span>
+                      <RunStatusBadge status={r.status} />
+                    </div>
+                    {(r.status === "running" || r.status === "queued") && <StopRunButton runId={r.id} />}
+                    {r.cancelledBy && <span className="text-xs text-muted">Stopped by {r.cancelledBy}</span>}
                   </li>
                 ))}
               </ul>

@@ -1,7 +1,9 @@
 import { authenticateAgent } from "@/lib/api/auth";
 import { describeError } from "@/lib/api/errors";
+import { scheduleDispatch } from "@/lib/dispatch-trigger";
 import type { Db } from "@/lib/db";
 import type { TaskStatus } from "@/lib/domain/tasks";
+import { getAppSettings } from "@/lib/services/settings";
 import {
   agentClaimTask,
   agentFinishRun,
@@ -34,6 +36,12 @@ const routes: { method: string; pattern: string[]; handler: Handler }[] = [
     }),
   },
   {
+    // Workflows call this first and skip their work while agents are paused.
+    method: "GET",
+    pattern: ["status"],
+    handler: async (db) => ({ agentsEnabled: (await getAppSettings(db)).agentsEnabled }),
+  },
+  {
     method: "GET",
     pattern: ["tasks"],
     handler: (db, ctx, { query }) =>
@@ -48,7 +56,11 @@ const routes: { method: string; pattern: string[]; handler: Handler }[] = [
   {
     method: "POST",
     pattern: ["tasks", ":key", "claim"],
-    handler: (db, ctx, { params, body }) => agentClaimTask(db, ctx, params[0], { runId: str(body.runId) || undefined }),
+    handler: (db, ctx, { params, body }) =>
+      agentClaimTask(db, ctx, params[0], {
+        runId: str(body.runId) || undefined,
+        githubRunId: typeof body.githubRunId === "number" ? body.githubRunId : undefined,
+      }),
   },
   {
     method: "POST",
@@ -124,6 +136,7 @@ async function handle(req: Request, { params }: RouteContext<"/api/v1/[...path]"
       body,
       query: new URL(req.url).searchParams,
     });
+    if (req.method === "POST") scheduleDispatch();
     return Response.json(result, { status: req.method === "POST" && path.length === 1 ? 201 : 200 });
   } catch (e) {
     const { status, message } = describeError(e);

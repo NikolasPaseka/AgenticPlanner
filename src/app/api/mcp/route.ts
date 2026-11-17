@@ -1,5 +1,6 @@
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { authenticateAgent } from "@/lib/api/auth";
+import { scheduleDispatch } from "@/lib/dispatch-trigger";
 import { buildMcpServer } from "@/lib/mcp/server";
 
 // MCP over Streamable HTTP, stateless: every request carries the bearer token and
@@ -13,6 +14,7 @@ export async function POST(req: Request): Promise<Response> {
     enableJsonResponse: true,
   });
   await server.connect(transport);
+  scheduleDispatch(); // A finished run or submitted task may free an agent slot.
   try {
     return await transport.handleRequest(req);
   } finally {

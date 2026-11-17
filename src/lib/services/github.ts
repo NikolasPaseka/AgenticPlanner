@@ -7,6 +7,7 @@ import { isOwnerLogin } from "./owners";
 import type { Actor } from "./actor";
 import { ConflictError, NotFoundError, ValidationError } from "./errors";
 import type { Project } from "./projects";
+import { handleWorkflowRun } from "./dispatch";
 import { addComment, transitionTask, type Task } from "./tasks";
 
 // ---------------------------------------------------------------------------
@@ -120,6 +121,8 @@ export async function handleGitHubEvent(db: Db, name: string, payload: unknown):
     case "installation":
     case "installation_repositories":
       return handleInstallation(db, payload as InstallationPayload);
+    case "workflow_run":
+      return handleWorkflowRun(db, payload as Parameters<typeof handleWorkflowRun>[1]);
     case "ping":
       return "pong";
     default:

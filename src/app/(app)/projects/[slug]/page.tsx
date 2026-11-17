@@ -55,12 +55,15 @@ export default async function ProjectPage({ params, searchParams }: PageProps<"/
             {!project.settings.autoDispatch && <span>Auto-dispatch off</span>}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Link
             href={`/projects/${project.slug}/review`}
             className={buttonClass(reviewCount > 0 ? "primary" : "secondary")}
           >
             Review{reviewCount > 0 && ` (${reviewCount})`}
+          </Link>
+          <Link href={`/projects/${project.slug}/runs`} className={buttonClass("secondary")}>
+            Runs
           </Link>
           <Link href={`/projects/${project.slug}/settings`} className={buttonClass("secondary")}>
             Settings

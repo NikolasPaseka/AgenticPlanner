@@ -78,9 +78,13 @@ export function buildMcpServer(db: Db, ctx: AgentContext): McpServer {
       title: "Claim task",
       description:
         "Start working on a todo or changes_requested task. Moves it to in_progress and returns a runId. Fails if another agent has it, it is on hold, or agents are paused.",
-      inputSchema: { key, runId: z.uuid().optional().describe("Run id given by the dispatcher, if any") },
+      inputSchema: {
+        key,
+        runId: z.uuid().optional().describe("Run id given by the dispatcher, if any"),
+        githubRunId: z.number().int().positive().optional().describe("GitHub Actions run id (github.run_id), if running in Actions"),
+      },
     },
-    ({ key, runId }) => run(() => agentClaimTask(db, ctx, key, { runId })),
+    ({ key, runId, githubRunId }) => run(() => agentClaimTask(db, ctx, key, { runId, githubRunId })),
   );
 
   server.registerTool(

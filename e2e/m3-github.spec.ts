@@ -1,7 +1,7 @@
 import { createHmac } from "node:crypto";
 import { expect, test, type APIRequestContext } from "@playwright/test";
 import { E2E_WEBHOOK_SECRET, FAKE_GITHUB_URL } from "../playwright.config";
-import { addTask, call, createProject, createToken, mcpClient, signIn, visible } from "./helpers";
+import { addTask, call, connectRepo, createProject, createToken, mcpClient, setAutoDispatch, signIn, visible } from "./helpers";
 
 // Milestone 3: GitHub integration against a fake GitHub API. See docs/testing.md.
 
@@ -43,9 +43,9 @@ function pr(owner: string, repo: string, key: string, number: number, sha = "abc
 async function setUpTaskInReview(page: import("@playwright/test").Page, baseURL: string, request: APIRequestContext) {
   const repo = `repo-${Date.now().toString(36)}`;
   const { key, slug } = await createProject(page, { owner: "octo", repo });
-  await page.goto(`/projects/${slug}/settings`);
-  await visible(page.getByRole("button", { name: "Connect" })).click();
-  await expect(visible(page.getByText("installation 4242"))).toBeVisible();
+  // This test plays the agent itself, so the dispatcher must not start one.
+  await setAutoDispatch(page, slug, false);
+  await connectRepo(page, slug);
 
   await page.goto(`/projects/${slug}`);
   await addTask(page, "Add login");

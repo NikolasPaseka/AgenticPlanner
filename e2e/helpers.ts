@@ -77,3 +77,18 @@ export async function call(client: Client, name: string, args: Record<string, un
   const text = res.content[0]?.text ?? "";
   return { isError: !!res.isError, text, json: res.isError ? null : JSON.parse(text) };
 }
+
+export async function setAutoDispatch(page: Page, slug: string, on: boolean) {
+  await page.goto(`/projects/${slug}/settings`);
+  const box = visible(page.locator('input[name="autoDispatch"]'));
+  if (on) await box.check();
+  else await box.uncheck();
+  await visible(page.getByRole("button", { name: "Save settings" })).click();
+  await expect(visible(page.getByText("Saved."))).toBeVisible();
+}
+
+export async function connectRepo(page: Page, slug: string) {
+  await page.goto(`/projects/${slug}/settings`);
+  await visible(page.getByRole("button", { name: "Connect" })).click();
+  await expect(visible(page.getByText(/installation \d+/))).toBeVisible();
+}

@@ -1,5 +1,6 @@
 import { getDb } from "@/lib/db";
 import { verifyGitHubSignature } from "@/lib/github/webhook-signature";
+import { scheduleDispatch } from "@/lib/dispatch-trigger";
 import { handleGitHubEvent, recordDelivery } from "@/lib/services/github";
 
 // GitHub App webhook receiver. Configure the App's webhook URL as
@@ -26,6 +27,7 @@ export async function POST(req: Request): Promise<Response> {
   }
   try {
     const result = await handleGitHubEvent(db, name, payload);
+    if (name === "workflow_run" || name === "pull_request") scheduleDispatch();
     return Response.json({ ok: true, result });
   } catch (e) {
     console.error("github webhook failed", name, e);

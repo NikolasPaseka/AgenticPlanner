@@ -84,10 +84,17 @@ Automated tests use a fake GitHub API (`e2e/fake-github.mts`) and signed webhook
 - [ ] Approve it in AgentPlanner; GitHub shows a merge commit by the App.
 
 ### M4: Automated agents
-- [ ] With agents on and auto-dispatch on, a Todo task starts a workflow run.
-- [ ] Global switch off: nothing starts. Task on hold: it is skipped.
-- [ ] Stop cancels the Actions run, keeps the branch, and holds the task.
-- [ ] Request changes re-dispatches the developer agent.
+- [x] (auto) With agents on and auto-dispatch on, a new Todo task dispatches the develop workflow with its key and run id.
+- [x] (auto) Global switch off: nothing starts; switching on starts the waiting task.
+- [x] (auto) Held tasks are skipped; the parallel limit and priority order hold (service tests).
+- [x] (auto) Stop cancels the Actions run and holds the task; the agent's claim is then refused.
+- [x] (auto) Run agent now starts one task with auto-dispatch off.
+- [x] (auto) A run that ends without a review, or a failed dispatch, holds the task.
+- [x] (auto) After 3 agent change requests the task is held for the owner (service test).
+- [ ] Install the workflow templates in a test repository ([agent-workflows.md](agent-workflows.md)).
+- [ ] A real developer run claims the task, opens a PR, and submits it for review.
+- [ ] The reviewer workflow runs on the agent PR and records a review.
+- [ ] Request changes re-dispatches the developer, who updates the same PR.
 
 ### M5: Vercel
 - [ ] The preview URL appears on the task when the PR deploys.

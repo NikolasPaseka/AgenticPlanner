@@ -121,12 +121,38 @@ export async function agentClaimTask(
   db: Db,
   ctx: AgentContext,
   key: string,
-  opts: { runId?: string; role?: "developer" } = {},
+  opts: { runId?: string; githubRunId?: number; role?: "developer" } = {},
 ) {
   requireScope(ctx, "tasks:write");
   const settings = await getAppSettings(db);
   if (!settings.agentsEnabled) throw new ConflictError("Agents are paused by the owner; try again later");
   const task = await taskByKey(db, ctx, key);
+
+  const runFields = {
+    status: "running" as const,
+    startedAt: sql`now()`,
+    agent: ctx.actor.name,
+    apiTokenId: ctx.token.id,
+    ...(opts.githubRunId ? { githubRunId: opts.githubRunId } : {}),
+  };
+
+  if (opts.runId) {
+    const [run] = await db
+      .select()
+      .from(agentRuns)
+      .where(and(eq(agentRuns.id, opts.runId), eq(agentRuns.projectId, ctx.project.id)));
+    if (!run) throw new NotFoundError(`Run ${opts.runId}`);
+    if (run.status !== "queued" && run.status !== "running") {
+      throw new ConflictError(`Run ${opts.runId} is ${run.status}${run.cancelledBy ? ` (stopped by ${run.cancelledBy})` : ""}; stop working on it`);
+    }
+    // The dispatcher already moved the task to in_progress for this run.
+    if (run.taskId === task.id && task.status === "in_progress") {
+      await db.update(agentRuns).set(runFields).where(eq(agentRuns.id, run.id));
+      await db.update(tasks).set({ assignee: ctx.actor.name }).where(eq(tasks.id, task.id));
+      return { task: presentTask(ctx.project, task), runId: run.id };
+    }
+  }
+
   if (task.onHold) throw new ConflictError(`${key} is on hold`);
   if (!isClaimable(task)) throw new ConflictError(`${key} is ${task.status}; only todo or changes_requested tasks can be claimed`);
 
@@ -135,24 +161,11 @@ export async function agentClaimTask(
 
   let runId = opts.runId;
   if (runId) {
-    const [run] = await db
-      .update(agentRuns)
-      .set({ status: "running", startedAt: sql`now()`, taskId: task.id })
-      .where(and(eq(agentRuns.id, runId), eq(agentRuns.projectId, ctx.project.id)))
-      .returning({ id: agentRuns.id });
-    if (!run) throw new NotFoundError(`Run ${runId}`);
+    await db.update(agentRuns).set({ ...runFields, taskId: task.id }).where(eq(agentRuns.id, runId));
   } else {
     const [run] = await db
       .insert(agentRuns)
-      .values({
-        projectId: ctx.project.id,
-        taskId: task.id,
-        role: opts.role ?? "developer",
-        agent: ctx.actor.name,
-        apiTokenId: ctx.token.id,
-        status: "running",
-        startedAt: sql`now()`,
-      })
+      .values({ projectId: ctx.project.id, taskId: task.id, role: opts.role ?? "developer", ...runFields })
       .returning({ id: agentRuns.id });
     runId = run.id;
   }
@@ -217,6 +230,17 @@ export async function agentReportBlocked(db: Db, ctx: AgentContext, key: string,
   return { ok: true };
 }
 
+/** Agent change requests allowed per task before the owner has to step in. */
+export const REVIEW_ROUNDS_LIMIT = 3;
+
+async function countAgentChangeRequests(db: Db, taskId: string): Promise<number> {
+  const [{ n }] = await db
+    .select({ n: count() })
+    .from(reviews)
+    .where(and(eq(reviews.taskId, taskId), eq(reviews.verdict, "request_changes")));
+  return n;
+}
+
 const reviewInput = z.object({
   verdict: z.enum(["approve", "request_changes", "comment"]),
   body: z.string().trim().max(20000).default(""),
@@ -247,6 +271,13 @@ export async function agentRecordReview(db: Db, ctx: AgentContext, key: string, 
     .returning({ id: reviews.id });
   await logEvent(db, task.id, ctx, "review_recorded", { verdict: input.verdict, findings: input.findings.length });
   if (input.verdict === "request_changes" && task.status === "in_review") {
+    const agentRounds = await countAgentChangeRequests(db, task.id);
+    if (agentRounds > REVIEW_ROUNDS_LIMIT) {
+      // Developer and reviewer agents keep disagreeing: stop the loop and let the owner decide.
+      await db.update(tasks).set({ onHold: true }).where(eq(tasks.id, task.id));
+      await logEvent(db, task.id, ctx, "review_loop_stopped", { rounds: agentRounds - 1 });
+      return { reviewId: review.id, note: "Review round limit reached; the owner will decide." };
+    }
     await transitionTask(db, task.id, "changes_requested", ctx.actor, { reviewId: review.id });
   }
   return { reviewId: review.id };

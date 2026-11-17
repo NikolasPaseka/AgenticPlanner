@@ -34,7 +34,7 @@ a message.
 |------|-------|--------|
 | `list_tasks` | `status?`, `priority?`, `limit?` | Open tasks, highest priority first |
 | `get_task` | `key` | Task with acceptance criteria, comments, and latest review |
-| `claim_task` | `key`, `runId?` | `todo` or `changes_requested` to `in_progress`; creates an agent run and returns `runId`. Fails if taken, on hold, or agents are paused |
+| `claim_task` | `key`, `runId?`, `githubRunId?` | `todo` or `changes_requested` to `in_progress`; creates an agent run and returns `runId`. Fails if taken, on hold, or agents are paused |
 | `update_progress` | `key`, `message` | Adds a comment |
 | `link_branch` | `key`, `branch` | Stores the branch name |
 | `submit_for_review` | `key`, `summary`, `prNumber?`, `prUrl?`, `branch?` | `in_progress` to `in_review`; summary becomes a comment |
@@ -54,6 +54,7 @@ Base path `/api/v1`. JSON in and out. Errors are `{ "error": "..." }`.
 | Method and path | Same as |
 |-----------------|---------|
 | `GET /me` | Token identity: agent name, scopes, project |
+| `GET /status` | `{ "agentsEnabled": true }`; workflows skip work while false |
 | `GET /tasks?status=&priority=&limit=` | `list_tasks` |
 | `POST /tasks` | `propose_task` (201) |
 | `GET /tasks/:key` | `get_task` |

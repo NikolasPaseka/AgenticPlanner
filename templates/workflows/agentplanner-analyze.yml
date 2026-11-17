@@ -1,0 +1,56 @@
+# AgentPlanner analyzer agent. Looks for problems in the repository and proposes
+# tasks. Proposals wait for the owner's approval in AgentPlanner. It never changes code.
+# Setup: docs/agent-workflows.md in the AgentPlanner repository.
+name: AgentPlanner analyzer
+
+on:
+  schedule:
+    - cron: "0 5 * * 1" # Mondays 05:00 UTC
+  workflow_dispatch:
+    inputs:
+      focus:
+        description: Optional focus, e.g. "security" or "test coverage"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Skip while agents are paused
+        id: status
+        env:
+          AGENTPLANNER_URL: ${{ vars.AGENTPLANNER_URL }}
+          AGENTPLANNER_TOKEN: ${{ secrets.AGENTPLANNER_ANALYZE_TOKEN }}
+        run: |
+          status=$(curl -fsS -H "Authorization: Bearer $AGENTPLANNER_TOKEN" "$AGENTPLANNER_URL/api/v1/status")
+          echo "$status"
+          if echo "$status" | grep -q '"agentsEnabled":true'; then echo "run=true" >> "$GITHUB_OUTPUT"; else echo "Agents are paused"; fi
+
+      - uses: actions/checkout@v4
+        if: steps.status.outputs.run == 'true'
+
+      - name: Run analyzer agent
+        if: steps.status.outputs.run == 'true'
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_args: |
+            --mcp-config '{"mcpServers":{"agentplanner":{"type":"http","url":"${{ vars.AGENTPLANNER_URL }}/api/mcp","headers":{"Authorization":"Bearer ${{ secrets.AGENTPLANNER_ANALYZE_TOKEN }}"}}}}'
+            --allowedTools "mcp__agentplanner__list_tasks,mcp__agentplanner__get_task,mcp__agentplanner__propose_task,Read,Glob,Grep,Bash(npm audit:*),Bash(git log:*)"
+            --max-turns 60
+          prompt: |
+            You are the analyzer agent. Review this repository for real problems: bugs, security
+            issues, missing tests for important code, outdated or vulnerable dependencies, and
+            mismatches between the docs and the code. Focus: "${{ inputs.focus }}" (empty means general).
+            Do not change any files.
+
+            1. Call list_tasks (including status "proposed" and "todo") so you do not propose duplicates.
+            2. Propose at most 5 tasks with propose_task, the most valuable first. Each needs a clear
+               title, a description with evidence (files and lines), acceptance criteria, a type, and
+               a priority. Skip style nits.

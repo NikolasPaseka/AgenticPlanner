@@ -30,7 +30,7 @@ merged and deployed to Vercel.
 - Review queue page: PR, checks, findings, approve, request changes, reject.
 - Approve merges through the API; reject closes the PR.
 
-## M4: Automated agents
+## M4: Automated agents (built, testing locally)
 - Workflow templates for developer, reviewer, analyzer.
 - Auto-dispatcher (event-driven plus Vercel Cron) starts the developer workflow for the top `todo` task; manual dispatch and pause per project; agent runs page.
 - Owner controls: global agents switch in the header, Stop button that cancels a running GitHub Actions run, and an "on hold" flag per task.

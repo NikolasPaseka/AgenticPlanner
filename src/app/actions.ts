@@ -13,6 +13,8 @@ import { createApiToken, revokeApiToken } from "@/lib/services/tokens";
 import { getGitHub, GitHubNotConfiguredError } from "@/lib/github/gateway";
 import { githubConfigured } from "@/lib/github/config";
 import { approveAndMerge, connectRepository, rejectTask, requestChanges } from "@/lib/services/github";
+import { scheduleDispatch } from "@/lib/dispatch-trigger";
+import { dispatchTask, stopRun } from "@/lib/services/dispatch";
 import { addComment, createTask, setTaskHold, transitionTask, updateTask } from "@/lib/services/tasks";
 
 export type FormState = { error?: string; ok?: boolean } | undefined;
@@ -34,6 +36,8 @@ function toFormError(e: unknown): FormState {
 
 function refresh() {
   revalidatePath("/", "layout");
+  // Any owner change can make a task ready for an agent; the dispatcher checks all switches.
+  scheduleDispatch();
 }
 
 const str = (form: FormData, key: string) => String(form.get(key) ?? "");
@@ -284,5 +288,36 @@ export async function rejectTaskAction(_prev: FormState, form: FormData): Promis
     return githubError(e);
   }
   refresh();
+  return warning ? { error: warning } : { ok: true };
+}
+
+// --- Agent runs -----------------------------------------------------------------
+
+export async function dispatchTaskAction(_prev: FormState, form: FormData): Promise<FormState> {
+  const owner = await requireOwner();
+  try {
+    await dispatchTask(getDb(), getGitHub(), str(form, "taskId"), owner);
+  } catch (e) {
+    return githubError(e);
+  }
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+export async function stopRunAction(_prev: FormState, form: FormData): Promise<FormState> {
+  const owner = await requireOwner();
+  let warning: string | undefined;
+  try {
+    ({ warning } = await stopRun(
+      getDb(),
+      githubConfigured() ? getGitHub() : null,
+      str(form, "runId"),
+      str(form, "mode") === "blocked" ? "blocked" : "todo",
+      owner,
+    ));
+  } catch (e) {
+    return githubError(e);
+  }
+  revalidatePath("/", "layout");
   return warning ? { error: warning } : { ok: true };
 }

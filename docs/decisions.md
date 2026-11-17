@@ -5,6 +5,8 @@ Record architecture decisions here, newest first. Status is `proposed`,
 
 | # | Date | Decision | Status |
 |---|------|----------|--------|
+| 17 | 2026-11-17 | Failed or stopped runs put the task on hold instead of retrying; agent review loops stop after 3 rounds | accepted |
+| 16 | 2026-11-17 | Dispatch is event-driven (after() on changes and webhooks) with Vercel Cron as a safety net, under a per-project advisory lock | accepted |
 | 15 | 2026-11-17 | Merges pass the reviewed head SHA; a PR merged on GitHub only counts as approval if an owner merged it | accepted |
 | 14 | 2026-11-17 | GitHub access goes through a small gateway interface; tests use a fake GitHub API server | accepted |
 | 13 | 2026-11-17 | Local first: embedded Postgres (PGlite) for local dev and tests, a development-only login, and Playwright end-to-end tests per milestone | accepted |

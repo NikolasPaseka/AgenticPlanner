@@ -80,6 +80,8 @@ A task is dispatched automatically only when all of these are true:
 4. The task is in `todo`, or in `changes_requested` with new feedback, and
    it is not on hold.
 
+Details of dispatching, stopping, and failure handling: [agent-workflows.md](agent-workflows.md).
+
 ## Guardrails
 
 - One active developer run per task. A max number of parallel runs per

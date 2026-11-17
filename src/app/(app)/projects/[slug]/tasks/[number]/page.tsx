@@ -6,6 +6,9 @@ import { StatusBadge } from "@/components/task-list";
 import { Badge, Button, Card, cn } from "@/components/ui";
 import { getDb } from "@/lib/db";
 import { allowedTransitions, type TaskStatus } from "@/lib/domain/tasks";
+import { desc, eq } from "drizzle-orm";
+import { reviews as reviewsTable } from "@/lib/db/schema";
+import { listRunsForTask } from "@/lib/services/agents";
 import { getProjectBySlug } from "@/lib/services/projects";
 import { getTaskByNumber, getTimeline, type TaskEvent, type TimelineItem } from "@/lib/services/tasks";
 import {
@@ -32,6 +35,12 @@ function describeEvent(e: TaskEvent): string {
       return "put it on hold";
     case "hold_released":
       return "released the hold";
+    case "branch_linked":
+      return `linked branch ${String(e.payload.branch ?? "")}`;
+    case "review_recorded": {
+      const verdict = String(e.payload.verdict ?? "comment").replace("_", " ");
+      return `recorded a review (${verdict}, ${String(e.payload.findings ?? 0)} findings)`;
+    }
     default:
       return e.type.replace(/_/g, " ");
   }
@@ -91,7 +100,11 @@ export default async function TaskPage({ params }: PageProps<"/projects/[slug]/t
   const db = getDb();
   const project = await orNotFound(getProjectBySlug(db, slug));
   const task = await orNotFound(getTaskByNumber(db, project.id, intParam(number)));
-  const timeline = await getTimeline(db, task.id);
+  const [timeline, runs, taskReviews] = await Promise.all([
+    getTimeline(db, task.id),
+    listRunsForTask(db, task.id),
+    db.select().from(reviewsTable).where(eq(reviewsTable.taskId, task.id)).orderBy(desc(reviewsTable.createdAt)),
+  ]);
   // Merging happens through the review flow once a PR exists (M3), never by a plain button.
   const transitions = allowedTransitions(task.status, "owner").filter((s) => s !== "merged");
   const key = `${project.key}-${task.number}`;
@@ -150,6 +163,53 @@ export default async function TaskPage({ params }: PageProps<"/projects/[slug]/t
             </details>
           </Card>
 
+          {taskReviews.length > 0 && (
+            <Section title="Reviews">
+              <div className="flex flex-col gap-3">
+                {taskReviews.map((r) => (
+                  <Card key={r.id} className="flex flex-col gap-2 p-4">
+                    <p className="text-sm">
+                      <span className="font-medium">{r.reviewer}</span>{" "}
+                      <Badge
+                        className={
+                          r.verdict === "request_changes"
+                            ? "text-orange-700 dark:text-orange-300"
+                            : r.verdict === "approve"
+                              ? "text-emerald-700 dark:text-emerald-300"
+                              : "text-muted"
+                        }
+                      >
+                        {r.verdict === "request_changes" ? "Changes requested" : r.verdict === "approve" ? "Recommends approval" : "Comment"}
+                      </Badge>{" "}
+                      <span className="text-xs text-muted">{timeAgo(r.createdAt)}</span>
+                    </p>
+                    {r.body && <p className="text-sm whitespace-pre-wrap">{r.body}</p>}
+                    {r.findings.length > 0 && (
+                      <ul className="flex flex-col gap-1 text-sm">
+                        {r.findings.map((f, i) => (
+                          <li key={i} className="flex gap-2">
+                            <Badge className={f.severity === "critical" || f.severity === "major" ? "text-red-600 dark:text-red-400" : "text-muted"}>
+                              {f.severity}
+                            </Badge>
+                            <span>
+                              {f.file && (
+                                <span className="font-mono text-xs text-muted">
+                                  {f.file}
+                                  {f.line ? `:${f.line}` : ""}{" "}
+                                </span>
+                              )}
+                              {f.message}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </Card>
+                ))}
+              </div>
+            </Section>
+          )}
+
           <Section title="Activity">
             <Timeline items={timeline} />
             <CommentForm taskId={task.id} />
@@ -196,6 +256,32 @@ export default async function TaskPage({ params }: PageProps<"/projects/[slug]/t
             </form>
           </Card>
 
+          {runs.length > 0 && (
+            <Card className="flex flex-col gap-2 p-4">
+              <h2 className="text-sm font-semibold">Agent runs</h2>
+              <ul className="flex flex-col gap-1.5 text-sm">
+                {runs.map((r) => (
+                  <li key={r.id} className="flex items-center justify-between gap-2">
+                    <span className="truncate">
+                      {r.agent} <span className="text-xs text-muted">({r.role})</span>
+                    </span>
+                    <Badge
+                      className={
+                        r.status === "running"
+                          ? "text-amber-700 dark:text-amber-300"
+                          : r.status === "succeeded"
+                            ? "text-emerald-700 dark:text-emerald-300"
+                            : "text-muted"
+                      }
+                    >
+                      {r.status}
+                    </Badge>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
+
           <Card className="p-4">
             <dl className="flex flex-col gap-2">
               <Meta label="Key">
@@ -204,6 +290,7 @@ export default async function TaskPage({ params }: PageProps<"/projects/[slug]/t
               <Meta label="Created by">
                 {task.source === "agent" ? `${task.createdByAgent ?? "agent"} (agent)` : "You"}
               </Meta>
+              {task.assignee && <Meta label="Assignee">{task.assignee}</Meta>}
               <Meta label="Created">{timeAgo(task.createdAt)}</Meta>
               <Meta label="Updated">{timeAgo(task.updatedAt)}</Meta>
               {task.branchName && (

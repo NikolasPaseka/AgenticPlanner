@@ -15,6 +15,13 @@
       "when": 1794939270007,
       "tag": "0001_owner_controls",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794941587231,
+      "tag": "0002_agent_api",
+      "breakpoints": true
     }
   ]
 }

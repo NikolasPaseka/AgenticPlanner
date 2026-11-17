@@ -114,6 +114,9 @@ export const tasks = pgTable(
     createdByAgent: text("created_by_agent"),
     assignee: text("assignee"),
     parentTaskId: uuid("parent_task_id").references((): AnyPgColumn => tasks.id),
+    createdByRunId: uuid("created_by_run_id").references((): AnyPgColumn => agentRuns.id, {
+      onDelete: "set null",
+    }),
     branchName: text("branch_name"),
     prNumber: integer("pr_number"),
     prUrl: text("pr_url"),
@@ -136,6 +139,8 @@ export const agentRuns = pgTable("agent_run", {
     .notNull()
     .references(() => projects.id, { onDelete: "cascade" }),
   role: agentRole("role").notNull(),
+  agent: text("agent").notNull(),
+  apiTokenId: uuid("api_token_id").references((): AnyPgColumn => apiTokens.id, { onDelete: "set null" }),
   status: runStatus("status").notNull().default("queued"),
   githubRunId: bigint("github_run_id", { mode: "number" }),
   githubRunUrl: text("github_run_url"),

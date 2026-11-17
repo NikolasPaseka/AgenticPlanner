@@ -18,7 +18,7 @@ merged and deployed to Vercel.
 - Global agents switch and per-task hold in the UI.
 - Local development login, embedded Postgres, and Playwright end-to-end tests.
 
-## M2: Agent API
+## M2: Agent API (built, testing locally)
 - API tokens per project (create, revoke, scopes).
 - REST v1 and the MCP server with the tools in [api.md](api.md).
 - Proposed tasks inbox for agent-created tasks.

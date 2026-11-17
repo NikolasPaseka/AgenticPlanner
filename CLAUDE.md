@@ -10,7 +10,7 @@ Read [README.md](README.md) and [docs/](docs/) before making changes.
 
 ## Current phase
 
-Milestone M1 (task board) is built and being tested locally. The stack is decided; see
+Milestones M1 (task board) and M2 (agent API) are built and being tested locally. The stack is decided; see
 [docs/tech-stack.md](docs/tech-stack.md) and [docs/decisions.md](docs/decisions.md).
 
 ## Rules

@@ -9,6 +9,7 @@ import { TASK_STATUSES } from "@/lib/domain/tasks";
 import { ConflictError, NotFoundError, ValidationError } from "@/lib/services/errors";
 import { createProject, updateProjectSettings } from "@/lib/services/projects";
 import { setAgentsEnabled } from "@/lib/services/settings";
+import { createApiToken, revokeApiToken } from "@/lib/services/tokens";
 import { addComment, createTask, setTaskHold, transitionTask, updateTask } from "@/lib/services/tasks";
 
 export type FormState = { error?: string; ok?: boolean } | undefined;
@@ -176,4 +177,34 @@ export async function addCommentAction(
   }
   refresh();
   return { ok: true };
+}
+
+// --- API tokens ---------------------------------------------------------------
+
+export type TokenFormState = { error?: string; token?: string; name?: string } | undefined;
+
+export async function createApiTokenAction(
+  projectId: string,
+  _prev: TokenFormState,
+  form: FormData,
+): Promise<TokenFormState> {
+  const owner = await requireOwner();
+  try {
+    const { token, record } = await createApiToken(
+      getDb(),
+      projectId,
+      { name: str(form, "name"), scopes: form.getAll("scopes").map(String) },
+      owner,
+    );
+    refresh();
+    return { token, name: record.name };
+  } catch (e) {
+    return toFormError(e);
+  }
+}
+
+export async function revokeApiTokenAction(form: FormData) {
+  const owner = await requireOwner();
+  await revokeApiToken(getDb(), str(form, "tokenId"), owner);
+  refresh();
 }

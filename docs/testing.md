@@ -62,11 +62,13 @@ before merging the milestone.
 - [ ] Dark mode looks right.
 
 ### M2: Agent API
-- [ ] Create and revoke an API token; a revoked token is rejected.
-- [ ] Claude Code on your machine connects to the MCP server and lists tasks.
-- [ ] An agent claims a Todo task; a held task or paused agents refuse the claim.
-- [ ] An agent proposes a task; it lands in "Proposed by agents".
-- [ ] An agent cannot merge, accept proposals, or flip the agents switch.
+- [x] (auto) Create and revoke an API token; a revoked token is rejected.
+- [x] (auto) An MCP client lists tools, claims a task, links a branch, comments, submits for review, proposes a task, and finishes the run; the UI shows all of it.
+- [x] (auto) A reviewer agent requests changes with findings; the task goes back.
+- [x] (auto) A held task or paused agents refuse the claim.
+- [x] (auto) REST: 401 without or with a revoked token, 403 without the scope.
+- [x] (auto) Agents cannot merge or accept proposals (service tests).
+- [ ] Claude Code on your machine connects (see [agent-setup.md](agent-setup.md)) and finishes a small real task.
 
 ### M3: GitHub integration
 - [ ] Install the GitHub App on a test repository and link it to a project.

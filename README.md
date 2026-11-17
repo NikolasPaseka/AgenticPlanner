@@ -27,6 +27,7 @@ into `main`, and Vercel deploys it to production.
 | [docs/data-model.md](docs/data-model.md) | Entities, fields, task state machine |
 | [docs/agent-workflow.md](docs/agent-workflow.md) | Agent roles, lifecycle, Git and Vercel pipeline |
 | [docs/api.md](docs/api.md) | REST API, MCP tools for agents, webhooks |
+| [docs/agent-setup.md](docs/agent-setup.md) | Connect Claude Code to a project |
 | [docs/security.md](docs/security.md) | Auth, tokens, permissions, guardrails |
 | [docs/testing.md](docs/testing.md) | Local development, test layers, per-milestone checklist |
 | [docs/roadmap.md](docs/roadmap.md) | Milestones from MVP to full automation |

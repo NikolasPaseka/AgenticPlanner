@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { requireOwner } from "@/auth";
 import { CommitList, DiffView, type PlacedFinding } from "@/components/diff-view";
 import { ArrowLeftIcon } from "@/components/icons";
+import { MarkdownText } from "@/components/markdown";
 import { PullRequestMeta, SEVERITY_CLASS, VerdictBadge } from "@/components/review-bits";
 import { ReviewActions } from "@/components/review";
 import { StatusBadge } from "@/components/task-list";
@@ -99,7 +100,7 @@ export default async function ReviewTaskPage({ params }: PageProps<"/projects/[s
                 <span className="font-medium text-fg">{summary.author}</span> summarised the work{" "}
                 {timeAgo(summary.createdAt)}
               </p>
-              <p className="text-sm whitespace-pre-wrap">{summary.body}</p>
+              <MarkdownText>{summary.body}</MarkdownText>
             </Card>
           )}
 
@@ -110,7 +111,7 @@ export default async function ReviewTaskPage({ params }: PageProps<"/projects/[s
                 <VerdictBadge verdict={latestReview.verdict} />
                 <span className="text-xs text-muted">{timeAgo(latestReview.createdAt)}</span>
               </p>
-              {latestReview.body && <p className="text-sm whitespace-pre-wrap">{latestReview.body}</p>}
+              {latestReview.body && <MarkdownText>{latestReview.body}</MarkdownText>}
               {latestReview.findings.length > 0 && (
                 <ul className="flex flex-col gap-1.5 text-sm">
                   {latestReview.findings.map((f, i) => (

@@ -50,6 +50,26 @@ test("switching tabs is instant: the prefetch already holds the tab's tasks", as
   });
 });
 
+test("descriptions and comments render Markdown, without raw HTML", async ({ page }) => {
+  await createProject(page);
+  await addTask(page, "Write docs");
+  await visible(page.getByRole("link", { name: /Write docs/ })).click();
+
+  await visible(page.getByText("Edit task")).click();
+  await visible(page.locator('textarea[name="description"]')).fill(
+    "## Goal\n\nShip **docs** with a [guide](https://example.com).\n\n<b id=\"raw\">raw html</b>",
+  );
+  await visible(page.getByRole("button", { name: "Save changes" })).click();
+  await expect(visible(page.getByRole("heading", { name: "Goal" }))).toBeVisible();
+  await expect(visible(page.locator("strong", { hasText: "docs" }))).toBeVisible();
+  await expect(visible(page.getByRole("link", { name: "guide" }))).toHaveAttribute("rel", "noreferrer nofollow");
+  await expect(page.locator("#raw")).toHaveCount(0);
+
+  await visible(page.locator('textarea[name="body"]')).fill("- first\n- second");
+  await visible(page.getByRole("button", { name: "Comment", exact: true })).click();
+  await expect(visible(page.locator(".markdown li", { hasText: "second" }))).toBeVisible();
+});
+
 test("the New task dialog closes after adding and Escape dismisses it", async ({ page }) => {
   await createProject(page);
   await addTask(page, "From the dialog");

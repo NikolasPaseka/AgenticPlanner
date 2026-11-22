@@ -5,6 +5,7 @@ Record architecture decisions here, newest first. Status is `proposed`,
 
 | # | Date | Decision | Status |
 |---|------|----------|--------|
+| 24 | 2026-11-22 | Descriptions, comments, summaries, and reviews render as GitHub-flavoured Markdown with react-markdown; no raw HTML, images become links | accepted |
 | 23 | 2026-11-22 | Vercel functions run in `cle1` (Cleveland), next to the Neon database in `us-east-2`, so each query is a short round trip | accepted |
 | 22 | 2026-11-22 | Project tabs prefetch their content: data loads in `use cache: private` functions (fresh on every server request, kept by the browser for 30 seconds, cleared by any owner action) and tab links use `prefetch={true}` | accepted |
 | 21 | 2026-11-22 | Light, dark, or system theme per browser, stored in localStorage and applied by an inline script before the first paint | accepted |

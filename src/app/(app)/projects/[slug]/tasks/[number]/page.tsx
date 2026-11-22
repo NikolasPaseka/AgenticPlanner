@@ -3,11 +3,12 @@ import { connection } from "next/server";
 import { requireOwner } from "@/auth";
 import { setTaskHoldAction, transitionTaskAction } from "@/app/actions";
 import { CommentForm, EditTaskForm } from "@/components/forms";
+import { MarkdownText } from "@/components/markdown";
 import { RunAgentNowButton, StopRunButton } from "@/components/runs";
 import { RunStatusBadge } from "@/components/run-status";
 import { githubConfigured } from "@/lib/github/config";
 import { StatusBadge } from "@/components/task-list";
-import { Badge, Button, buttonClass, Card, cn } from "@/components/ui";
+import { Badge, Button, buttonClass, Card } from "@/components/ui";
 import { getDb } from "@/lib/db";
 import { allowedTransitions, type TaskStatus } from "@/lib/domain/tasks";
 import { listRunsForTask } from "@/lib/services/agents";
@@ -102,7 +103,7 @@ function Timeline({ items }: { items: TimelineItem[] }) {
                 <span className="font-medium text-fg">{item.comment.author}</span>
                 {item.comment.authorType === "agent" && " (agent)"} commented {timeAgo(item.at)}
               </p>
-              <p className="text-sm whitespace-pre-wrap">{item.comment.body}</p>
+              <MarkdownText>{item.comment.body}</MarkdownText>
             </Card>
           </li>
         ),
@@ -179,17 +180,21 @@ export default async function TaskPage({ params }: PageProps<"/projects/[slug]/t
         <div className="flex min-w-0 flex-col gap-6">
           <Section title="Description">
             <Card className="p-4">
-              <p className={cn("text-sm whitespace-pre-wrap", !task.description && "text-muted")}>
-                {task.description || "No description."}
-              </p>
+              {task.description ? (
+                <MarkdownText>{task.description}</MarkdownText>
+              ) : (
+                <p className="text-sm text-muted">No description.</p>
+              )}
             </Card>
           </Section>
 
           <Section title="Acceptance criteria">
             <Card className="p-4">
-              <p className={cn("text-sm whitespace-pre-wrap", !task.acceptanceCriteria && "text-muted")}>
-                {task.acceptanceCriteria || "None yet. Agents work best with clear criteria."}
-              </p>
+              {task.acceptanceCriteria ? (
+                <MarkdownText>{task.acceptanceCriteria}</MarkdownText>
+              ) : (
+                <p className="text-sm text-muted">None yet. Agents work best with clear criteria.</p>
+              )}
             </Card>
           </Section>
 
@@ -222,7 +227,7 @@ export default async function TaskPage({ params }: PageProps<"/projects/[slug]/t
                       </Badge>{" "}
                       <span className="text-xs text-muted">{timeAgo(r.createdAt)}</span>
                     </p>
-                    {r.body && <p className="text-sm whitespace-pre-wrap">{r.body}</p>}
+                    {r.body && <MarkdownText>{r.body}</MarkdownText>}
                     {r.findings.length > 0 && (
                       <ul className="flex flex-col gap-1 text-sm">
                         {r.findings.map((f, i) => (

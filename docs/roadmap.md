@@ -48,10 +48,11 @@ merged and deployed to Vercel.
 - Change browser for each task in review: the agent's summary, the
   reviewer's findings placed on diff lines, commits, and the decision.
 - Light, dark, and system themes with a switch in the header.
+- Tabs switch instantly: their content is prefetched (decision 22).
+- Markdown in descriptions, comments, agent summaries, and reviews.
 
 ## Next (needs decisions)
 - Notifications for blocked tasks and review requests: email (e.g. Resend),
   web push, or Slack. Needs a provider choice.
 - Dogfooding: AgentPlanner manages its own repository. Needs the GitHub App,
   secrets, and workflow templates installed in this repository.
-- Markdown rendering for task descriptions and comments.

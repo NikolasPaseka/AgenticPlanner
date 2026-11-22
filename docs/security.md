@@ -33,6 +33,10 @@ not exist there. Never set `AUTH_DEV_LOGIN` in Vercel.
 - **Prompt injection:** task descriptions, PR comments, and issue text are
   untrusted input to agents. Role prompts tell agents to treat them as data,
   and agents cannot reach owner-only actions regardless of what text says.
+- **Rendering untrusted text:** descriptions, comments, summaries, and reviews
+  render as Markdown (`components/markdown.tsx`) with raw HTML dropped, unsafe
+  link protocols removed, links opened with `rel="noreferrer nofollow"`, and
+  images shown as links so no remote image loads when the owner views a task.
 - **Secrets** live in Vercel environment variables and GitHub Actions secrets,
   never in the database or in prompts.
 - **Audit:** every state change is a `task_event` with the actor.

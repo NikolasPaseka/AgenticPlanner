@@ -116,5 +116,6 @@ them from the `deployment_status` webhook (no Vercel webhook or Pro plan needed)
 - [x] (auto) The change browser shows the PR files, commits, and the diff, with reviewer findings on their lines.
 - [x] (auto) Approving, requesting changes, or rejecting from the change browser returns to the review queue.
 - [x] (auto) The theme switch picks light, dark, or system and remembers the choice after a reload.
+- [x] (auto) Descriptions and comments render Markdown; raw HTML is dropped.
 - [ ] With the real GitHub App, the change browser shows a real agent pull request.
 - [ ] Light and dark themes look right on your screens, including a phone.

@@ -42,6 +42,12 @@ function refresh() {
 
 const str = (form: FormData, key: string) => String(form.get(key) ?? "");
 
+/** Where to go after a review decision: only a project page in this app, never another site. */
+function reviewDoneHref(form: FormData): string | null {
+  const next = str(form, "next");
+  return /^\/projects\/[a-z0-9-]+\/review$/.test(next) ? next : null;
+}
+
 // --- Auth -------------------------------------------------------------------
 
 export async function signInWithGitHub() {
@@ -251,6 +257,8 @@ export async function approveAndMergeAction(_prev: FormState, form: FormData): P
     return githubError(e);
   }
   refresh();
+  const next = reviewDoneHref(form);
+  if (next) redirect(next);
   return { ok: true };
 }
 
@@ -269,7 +277,10 @@ export async function requestChangesAction(_prev: FormState, form: FormData): Pr
     return githubError(e);
   }
   refresh();
-  return warning ? { error: warning } : { ok: true };
+  if (warning) return { error: warning };
+  const next = reviewDoneHref(form);
+  if (next) redirect(next);
+  return { ok: true };
 }
 
 export async function rejectTaskAction(_prev: FormState, form: FormData): Promise<FormState> {
@@ -288,7 +299,10 @@ export async function rejectTaskAction(_prev: FormState, form: FormData): Promis
     return githubError(e);
   }
   refresh();
-  return warning ? { error: warning } : { ok: true };
+  if (warning) return { error: warning };
+  const next = reviewDoneHref(form);
+  if (next) redirect(next);
+  return { ok: true };
 }
 
 // --- Agent runs -----------------------------------------------------------------

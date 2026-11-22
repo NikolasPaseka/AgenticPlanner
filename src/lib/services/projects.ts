@@ -65,6 +65,16 @@ export async function listProjectsWithCounts(db: Db) {
   });
 }
 
+/** Number of tasks in each status for one project. */
+export async function countTasksByStatus(db: Db, projectId: string): Promise<Partial<Record<TaskStatus, number>>> {
+  const rows = await db
+    .select({ status: tasks.status, n: count() })
+    .from(tasks)
+    .where(eq(tasks.projectId, projectId))
+    .groupBy(tasks.status);
+  return Object.fromEntries(rows.map((r) => [r.status, r.n]));
+}
+
 export async function getProjectBySlug(db: Db, slug: string): Promise<Project> {
   const [project] = await db.select().from(projects).where(eq(projects.slug, slug));
   if (!project) throw new NotFoundError(`Project ${slug}`);

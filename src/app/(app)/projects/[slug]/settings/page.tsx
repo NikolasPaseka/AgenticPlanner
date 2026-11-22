@@ -1,5 +1,4 @@
 import { headers } from "next/headers";
-import Link from "next/link";
 import { requireOwner } from "@/auth";
 import { revokeApiTokenAction } from "@/app/actions";
 import { ProjectSettingsForm } from "@/components/forms";
@@ -48,21 +47,12 @@ export default async function ProjectSettingsPage({ params }: PageProps<"/projec
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <p className="text-sm text-muted">
-          <Link href="/" className="hover:underline">
-            Projects
-          </Link>{" "}
-          /{" "}
-          <Link href={`/projects/${project.slug}`} className="hover:underline">
-            {project.name}
-          </Link>
-        </p>
-        <h1 className="text-xl font-semibold">Settings</h1>
-      </div>
-      <Card className="p-4">
-        <ProjectSettingsForm project={project} />
-      </Card>
+      <section className="flex flex-col gap-3">
+        <h2 className="text-base font-semibold">Project</h2>
+        <Card className="p-4">
+          <ProjectSettingsForm project={project} />
+        </Card>
+      </section>
 
       <section className="flex flex-col gap-3">
         <div>

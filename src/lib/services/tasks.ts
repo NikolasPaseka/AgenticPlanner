@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, ilike, inArray, sql, type SQL } from "drizzle-orm";
 import type { Db } from "@/lib/db";
-import { comments, projects, taskEvents, tasks } from "@/lib/db/schema";
+import { comments, projects, reviews, taskEvents, tasks } from "@/lib/db/schema";
 import { assertTransition, type TaskStatus } from "@/lib/domain/tasks";
 import {
   commentInput,
@@ -15,6 +15,7 @@ import { ConflictError, NotFoundError, ValidationError } from "./errors";
 export type Task = typeof tasks.$inferSelect;
 export type TaskEvent = typeof taskEvents.$inferSelect;
 export type Comment = typeof comments.$inferSelect;
+export type Review = typeof reviews.$inferSelect;
 
 export const CLOSED_STATUSES: TaskStatus[] = ["merged", "done", "cancelled"];
 
@@ -62,6 +63,10 @@ export type TaskFilters = {
   priority?: string;
   type?: string;
   includeClosed?: boolean;
+  /** Only these statuses; overrides includeClosed. */
+  statuses?: readonly TaskStatus[];
+  /** "priority" (default): most urgent first. "recent": last updated first. */
+  order?: "priority" | "recent";
 };
 
 export async function listTasks(
@@ -70,7 +75,9 @@ export async function listTasks(
   filters: TaskFilters = {},
 ): Promise<Task[]> {
   const where: SQL[] = [eq(tasks.projectId, project.id)];
-  if (!filters.includeClosed) {
+  if (filters.statuses) {
+    where.push(inArray(tasks.status, [...filters.statuses]));
+  } else if (!filters.includeClosed) {
     where.push(sql`${tasks.status} not in ('merged', 'done', 'cancelled')`);
   }
   if (filters.priority) where.push(eq(tasks.priority, filters.priority as Task["priority"]));
@@ -86,9 +93,13 @@ export async function listTasks(
     .from(tasks)
     .where(and(...where))
     .orderBy(
-      sql`case ${tasks.priority} when 'urgent' then 0 when 'high' then 1 when 'medium' then 2 else 3 end`,
-      asc(tasks.position),
-      asc(tasks.number),
+      ...(filters.order === "recent"
+        ? [desc(tasks.updatedAt), desc(tasks.number)]
+        : [
+            sql`case ${tasks.priority} when 'urgent' then 0 when 'high' then 1 when 'medium' then 2 else 3 end`,
+            asc(tasks.position),
+            asc(tasks.number),
+          ]),
     );
 }
 
@@ -243,4 +254,20 @@ export async function getTimeline(db: Db, taskId: string): Promise<TimelineItem[
 export async function getTasksByIds(db: Db, ids: string[]): Promise<Task[]> {
   if (ids.length === 0) return [];
   return db.select().from(tasks).where(inArray(tasks.id, ids)).orderBy(desc(tasks.createdAt));
+}
+
+/** Reviews of these tasks, newest first. */
+export async function listReviewsForTasks(db: Db, taskIds: string[]): Promise<Review[]> {
+  if (taskIds.length === 0) return [];
+  return db.select().from(reviews).where(inArray(reviews.taskId, taskIds)).orderBy(desc(reviews.createdAt));
+}
+
+/** Comments agents left on these tasks (their work summaries), newest first. */
+export async function listAgentComments(db: Db, taskIds: string[]): Promise<Comment[]> {
+  if (taskIds.length === 0) return [];
+  return db
+    .select()
+    .from(comments)
+    .where(and(inArray(comments.taskId, taskIds), eq(comments.authorType, "agent")))
+    .orderBy(desc(comments.createdAt));
 }

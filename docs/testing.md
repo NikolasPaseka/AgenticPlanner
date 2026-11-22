@@ -16,6 +16,10 @@ CI runs all of them on every pull request.
 55433 and 3101, signs in with the development login, and runs the specs in
 [e2e/](../e2e/). Use `npx playwright test --ui` to watch the tests run.
 
+On Windows, run the tests from a path with an upper-case drive letter
+(`D:\...`, not `d:\...`). With a lower-case one, Vitest loads itself twice and
+every suite fails with "Cannot read properties of undefined (reading 'config')".
+
 ## Running the app locally
 
 ```bash
@@ -104,3 +108,12 @@ them from the `deployment_status` webhook (no Vercel webhook or Pro plan needed)
 - [x] (auto) Deployments that started before the merge do not count.
 - [ ] With the real GitHub App subscribed to Deployment status, a PR preview link appears in the review queue.
 - [ ] After approving, the task turns Done when Vercel finishes the production deploy.
+
+### UI redesign
+- [x] (auto) Tabs split tasks into Planned, In progress, Review, and Done, with counts.
+- [x] (auto) The New task dialog adds a task, resets, closes, and Escape dismisses it.
+- [x] (auto) The change browser shows the PR files, commits, and the diff, with reviewer findings on their lines.
+- [x] (auto) Approving, requesting changes, or rejecting from the change browser returns to the review queue.
+- [x] (auto) The theme switch picks light, dark, or system and remembers the choice after a reload.
+- [ ] With the real GitHub App, the change browser shows a real agent pull request.
+- [ ] Light and dark themes look right on your screens, including a phone.

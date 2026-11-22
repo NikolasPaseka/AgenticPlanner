@@ -35,9 +35,10 @@ test("an agent works a task through MCP and the owner sees it", async ({ page, b
   await client.close();
 
   await page.goto(`/projects/${slug}`);
-  await expect(visible(page.getByRole("heading", { name: "In review" }))).toBeVisible();
   await expect(visible(page.getByRole("heading", { name: "Proposed by agents" }))).toBeVisible();
-  await visible(page.getByRole("link", { name: /Add login page/ })).click();
+  await visible(page.getByRole("link", { name: "Review (1)" })).click();
+  await expect(visible(page.getByRole("link", { name: /Add login page/ }))).toBeVisible();
+  await page.goto(`/projects/${slug}/tasks/1`);
   await expect(visible(page.getByText("Login page done; 4 tests added."))).toBeVisible();
   await expect(visible(page.getByText(`linked branch agent/${key}-1-add-login-page`))).toBeVisible();
   await expect(visible(page.getByRole("heading", { name: "Agent runs" }))).toBeVisible();

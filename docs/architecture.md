@@ -63,6 +63,10 @@ kept. The `workflow_run` webhook confirms the cancellation.
   may create follow-up tasks as proposals.
 
 ### 5. Owner decides
+The Review tab lists tasks in review. Each opens a change browser that reads
+the pull request's files and commits from GitHub through the App on demand
+(nothing is stored), shows the diff with the reviewer's findings on their
+lines, and offers the decision buttons.
 - **Approve:** app merges the PR through the GitHub API, task becomes
   `merged`. The production `deployment_status` event then moves it to `done`.
 - **Request changes:** app posts a PR review comment, task becomes
@@ -77,11 +81,15 @@ kept. The `workflow_run` webhook confirms the cancellation.
 app/
 src/app/
   (app)/page.tsx                                  projects
-  (app)/projects/[slug]/page.tsx                  grouped task list
+  (app)/projects/[slug]/layout.tsx                project header, New task dialog, tabs
+  (app)/projects/[slug]/page.tsx                  Planned tab (proposed, todo, backlog)
+  (app)/projects/[slug]/in-progress/page.tsx      In progress tab
+  (app)/projects/[slug]/review/page.tsx           Review tab (queue)
+  (app)/projects/[slug]/review/[number]/page.tsx  change browser: diff, findings, decision
+  (app)/projects/[slug]/done/page.tsx             Done tab (merged, done, cancelled)
   (app)/projects/[slug]/tasks/[number]/page.tsx   task detail
-  (app)/projects/[slug]/settings/page.tsx         project settings
-  (app)/projects/[slug]/review/page.tsx           review queue
   (app)/projects/[slug]/runs/page.tsx             agent runs
+  (app)/projects/[slug]/settings/page.tsx         project settings
   actions.ts                                      server actions (owner-checked)
   signin/
   api/v1/[...path]/         REST for agents
@@ -94,6 +102,9 @@ src/lib/
   services/                 data access and business rules; take a Db for tests
     tasks, projects, settings, tokens, agents, github, dispatch
   github/                   GitHub App gateway and webhook signatures
+  diff.ts                   unified diff parser for the change browser
+  ui/                       labels, tab definitions (tabs.ts), theme script
+src/components/             UI components; theme.tsx is the light/dark/system switch
   mcp/server.ts             MCP tool definitions
   dispatch-trigger.ts       runs the dispatcher after a response
 templates/workflows/        GitHub Actions installed into target repos

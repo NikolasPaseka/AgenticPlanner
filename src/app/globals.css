@@ -1,41 +1,87 @@
 @import "tailwindcss";
 
+/*
+ * Theme: light by default, dark when the system prefers it, unless the viewer
+ * picked one in the header (stored as data-theme on <html>, see layout.tsx).
+ */
+@custom-variant dark {
+  &:where([data-theme="dark"], [data-theme="dark"] *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    &:where(:root:not([data-theme="light"]), :root:not([data-theme="light"]) *) {
+      @slot;
+    }
+  }
+}
+
 :root {
-  --bg: #f7f7f8;
+  color-scheme: light;
+  --bg: #f6f7f9;
   --surface: #ffffff;
-  --surface-2: #f1f1f3;
-  --border: #e3e3e8;
-  --fg: #18181b;
-  --muted: #6b6b76;
+  --surface-2: #f1f2f5;
+  --surface-3: #e8eaee;
+  --border: #e2e4e9;
+  --border-strong: #cfd3da;
+  --fg: #14161b;
+  --muted: #646b78;
   --accent: #4f46e5;
   --accent-fg: #ffffff;
+  --accent-soft: #eef0ff;
   --danger: #dc2626;
+  --shadow: 0 1px 2px rgb(16 24 40 / 0.05);
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0c0c0f;
-    --surface: #16161a;
-    --surface-2: #1e1e23;
-    --border: #2a2a31;
-    --fg: #ececf1;
-    --muted: #9a9aa6;
-    --accent: #818cf8;
-    --accent-fg: #0c0c0f;
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0b0c0f;
+    --surface: #131419;
+    --surface-2: #1a1c22;
+    --surface-3: #23262e;
+    --border: #262932;
+    --border-strong: #353945;
+    --fg: #e9eaee;
+    --muted: #959baa;
+    --accent: #8b93ff;
+    --accent-fg: #0b0c0f;
+    --accent-soft: #1d1f3a;
     --danger: #f87171;
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.4);
   }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0b0c0f;
+  --surface: #131419;
+  --surface-2: #1a1c22;
+  --surface-3: #23262e;
+  --border: #262932;
+  --border-strong: #353945;
+  --fg: #e9eaee;
+  --muted: #959baa;
+  --accent: #8b93ff;
+  --accent-fg: #0b0c0f;
+  --accent-soft: #1d1f3a;
+  --danger: #f87171;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.4);
 }
 
 @theme inline {
   --color-bg: var(--bg);
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
   --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
   --color-fg: var(--fg);
   --color-muted: var(--muted);
   --color-accent: var(--accent);
   --color-accent-fg: var(--accent-fg);
+  --color-accent-soft: var(--accent-soft);
   --color-danger: var(--danger);
+  --shadow-card: var(--shadow);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -51,4 +97,8 @@ details > summary {
 }
 details > summary::-webkit-details-marker {
   display: none;
+}
+
+dialog::backdrop {
+  background: rgb(0 0 0 / 0.45);
 }

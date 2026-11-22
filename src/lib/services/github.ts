@@ -1,7 +1,7 @@
 import { and, eq, isNull, sql } from "drizzle-orm";
 import type { Db } from "@/lib/db";
 import { projects, taskEvents, tasks, webhookDeliveries } from "@/lib/db/schema";
-import type { GitHubGateway } from "@/lib/github/gateway";
+import { GitHubNotConfiguredError, type GitHubGateway, type PullRequestCommit, type PullRequestFile } from "@/lib/github/gateway";
 import { formatTaskKey } from "@/lib/domain/tasks";
 import { isOwnerLogin } from "./owners";
 import type { Actor } from "./actor";
@@ -462,4 +462,43 @@ export async function countReviewQueue(db: Db, projectId: string): Promise<numbe
     .from(tasks)
     .where(and(eq(tasks.projectId, projectId), eq(tasks.status, "in_review"), isNull(tasks.mergedAt)));
   return row?.n ?? 0;
+}
+
+// ---------------------------------------------------------------------------
+// Browsing the changes an agent made
+// ---------------------------------------------------------------------------
+
+export type TaskChanges =
+  | { ok: true; files: PullRequestFile[]; commits: PullRequestCommit[] }
+  | { ok: false; reason: string };
+
+/**
+ * Reads the files and commits of the task's pull request from GitHub. Nothing
+ * is stored: the diff is always the PR's current state. Patch text comes from
+ * the agent's branch and must be rendered as plain text.
+ */
+export async function getTaskChanges(
+  gh: GitHubGateway,
+  project: Pick<Project, "githubOwner" | "githubRepo" | "githubInstallationId">,
+  task: Pick<Task, "prNumber">,
+): Promise<TaskChanges> {
+  if (!task.prNumber) return { ok: false, reason: "No pull request is linked to this task yet." };
+  if (!project.githubOwner || !project.githubRepo || !project.githubInstallationId) {
+    return { ok: false, reason: "The repository is not connected. Connect it in Settings to see changes here." };
+  }
+  const args = [project.githubInstallationId, project.githubOwner, project.githubRepo, task.prNumber] as const;
+  try {
+    const [files, commits] = await Promise.all([gh.listPullRequestFiles(...args), gh.listPullRequestCommits(...args)]);
+    return { ok: true, files, commits };
+  } catch (e) {
+    if (e instanceof GitHubNotConfiguredError) return { ok: false, reason: e.message };
+    const status = (e as { status?: number }).status;
+    return {
+      ok: false,
+      reason:
+        status === 404
+          ? "GitHub could not find this pull request. It may have been deleted, or the App lost access."
+          : "Could not load the changes from GitHub. Try again, or open the pull request on GitHub.",
+    };
+  }
 }

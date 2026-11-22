@@ -10,7 +10,7 @@ Read [README.md](README.md) and [docs/](docs/) before making changes.
 
 ## Current phase
 
-Milestones M1 to M5 are built and being tested locally. See docs/roadmap.md for what is next. The stack is decided; see
+Milestones M1 to M5 and a UI redesign (project tabs, change browser, light and dark themes) are built and being tested locally. See docs/roadmap.md for what is next. The stack is decided; see
 [docs/tech-stack.md](docs/tech-stack.md) and [docs/decisions.md](docs/decisions.md).
 
 ## Rules

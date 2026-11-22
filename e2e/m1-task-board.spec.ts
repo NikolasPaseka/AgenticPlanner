@@ -19,8 +19,7 @@ test("redirects to sign-in when signed out", async ({ browser }) => {
 test("creates a project and rejects a duplicate key", async ({ page }) => {
   const { key } = await createProject(page);
   await page.goto("/");
-  await openNewProjectForm(page);
-  const form = page.locator("form").filter({ has: page.getByRole("button", { name: "Create project" }) });
+  const form = await openNewProjectForm(page);
   await form.getByLabel("Name").fill("Duplicate");
   await form.getByLabel("Task key").fill(key);
   await form.getByRole("button", { name: "Create project" }).click();

@@ -42,6 +42,13 @@ merged and deployed to Vercel.
   `deployment_status` events sent by Vercel's GitHub integration.
 - Auto-dispatch, parallel run limits, and run cost reporting (done in M4).
 
+## UI redesign (built, testing locally)
+- Project tabs by stage with counts: Planned, In progress, Review, Done,
+  Runs, Settings. Creating tasks and projects moved into dialogs.
+- Change browser for each task in review: the agent's summary, the
+  reviewer's findings placed on diff lines, commits, and the decision.
+- Light, dark, and system themes with a switch in the header.
+
 ## Next (needs decisions)
 - Notifications for blocked tasks and review requests: email (e.g. Resend),
   web push, or Slack. Needs a provider choice.

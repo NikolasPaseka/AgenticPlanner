@@ -5,8 +5,8 @@ export function cn(...classes: (string | false | null | undefined)[]) {
 }
 
 const buttonVariants = {
-  primary: "bg-accent text-accent-fg hover:opacity-90",
-  secondary: "border border-border bg-surface hover:bg-surface-2",
+  primary: "bg-accent text-accent-fg shadow-card hover:opacity-90",
+  secondary: "border border-border bg-surface shadow-card hover:bg-surface-2",
   ghost: "hover:bg-surface-2",
   danger: "border border-border bg-surface text-danger hover:bg-surface-2",
 } as const;
@@ -28,8 +28,10 @@ export function Button({
   return <button className={cn(buttonClass(variant, size), className)} {...props} />;
 }
 
-export const inputClass =
-  "w-full rounded-md border border-border bg-surface px-3 py-2 text-sm placeholder:text-muted focus:outline-2 focus:outline-accent";
+/** Text field look without a width; use for selects that size to their content. */
+export const fieldClass =
+  "rounded-md border border-border bg-surface px-3 py-2 text-sm shadow-card placeholder:text-muted focus:outline-2 focus:outline-accent";
+export const inputClass = `w-full ${fieldClass}`;
 
 export function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
@@ -55,7 +57,17 @@ export function Badge({ className, children }: { className?: string; children: R
 }
 
 export function Card({ className, children }: { className?: string; children: ReactNode }) {
-  return <div className={cn("rounded-lg border border-border bg-surface", className)}>{children}</div>;
+  return <div className={cn("rounded-xl border border-border bg-surface shadow-card", className)}>{children}</div>;
+}
+
+/** Dashed box for an empty list, with an optional call to action. */
+export function EmptyState({ title, children }: { title: string; children?: ReactNode }) {
+  return (
+    <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border-strong px-4 py-12 text-center">
+      <p className="text-sm font-medium">{title}</p>
+      {children && <div className="max-w-md text-sm text-muted">{children}</div>}
+    </div>
+  );
 }
 
 export function FormError({ message }: { message?: string | null }) {

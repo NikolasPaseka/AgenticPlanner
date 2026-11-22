@@ -5,6 +5,9 @@ Record architecture decisions here, newest first. Status is `proposed`,
 
 | # | Date | Decision | Status |
 |---|------|----------|--------|
+| 21 | 2026-11-22 | Light, dark, or system theme per browser, stored in localStorage and applied by an inline script before the first paint | accepted |
+| 20 | 2026-11-22 | The change browser reads PR files and commits from GitHub on demand through the App; diffs are not stored | accepted |
+| 19 | 2026-11-22 | Project pages are tabs by stage (Planned, In progress, Review, Done, Runs, Settings); new tasks and projects are created in dialogs | accepted |
 | 18 | 2026-11-17 | Deployment status comes from GitHub `deployment_status` events sent by Vercel's GitHub integration, not Vercel webhooks | accepted |
 | 17 | 2026-11-17 | Failed or stopped runs put the task on hold instead of retrying; agent review loops stop after 3 rounds | accepted |
 | 16 | 2026-11-17 | Dispatch is event-driven (after() on changes and webhooks) with Vercel Cron as a safety net, under a per-project advisory lock | accepted |

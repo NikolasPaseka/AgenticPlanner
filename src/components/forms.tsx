@@ -1,7 +1,7 @@
 "use client";
 
 import Form from "next/form";
-import { useActionState, type ReactNode } from "react";
+import { useActionState, useEffect, type ReactNode } from "react";
 import { useFormStatus } from "react-dom";
 import {
   addCommentAction,
@@ -15,7 +15,9 @@ import type { Project } from "@/lib/services/projects";
 import type { Task } from "@/lib/services/tasks";
 import { PRIORITY_LABEL, TYPE_LABEL } from "@/lib/ui/labels";
 import { MERGE_METHODS, PRIORITIES, TASK_TYPES } from "@/lib/validation";
-import { Button, Field, FormError, inputClass } from "./ui";
+import { useCloseDialog } from "./dialog";
+import { SearchIcon } from "./icons";
+import { Button, Field, fieldClass, FormError, inputClass } from "./ui";
 
 function SubmitButton({ children, pendingText }: { children: ReactNode; pendingText?: string }) {
   const { pending } = useFormStatus();
@@ -110,19 +112,23 @@ function TaskFields({ task }: { task?: Task }) {
   );
 }
 
+/** Used inside the New task dialog; closes it after the task is created. */
 export function NewTaskForm({ projectId }: { projectId: string }) {
   const [state, action] = useActionState(createTaskAction.bind(null, projectId), undefined);
+  const close = useCloseDialog();
+  useEffect(() => {
+    if (state?.ok) close();
+  }, [state, close]);
   return (
     <form action={action} className="flex flex-col gap-4">
       <TaskFields />
-      <div className="flex flex-wrap items-center gap-3">
-        <select name="status" defaultValue="todo" className={`${inputClass} w-auto`} aria-label="Initial status">
+      <div className="flex flex-wrap items-center justify-end gap-3 border-t border-border pt-4">
+        <FormError message={state?.error} />
+        <select name="status" defaultValue="todo" className={fieldClass} aria-label="Initial status">
           <option value="todo">Add to Todo (agents can pick it up)</option>
           <option value="backlog">Add to Backlog (not ready yet)</option>
         </select>
         <SubmitButton pendingText="Adding…">Add task</SubmitButton>
-        <FormError message={state?.error} />
-        {state?.ok && <span className="text-sm text-muted">Task added.</span>}
       </div>
     </form>
   );
@@ -262,61 +268,56 @@ export function ProjectSettingsForm({ project }: { project: Project }) {
   );
 }
 
-export type FilterValues = { q: string; priority: string; type: string; group: string; closed: boolean };
+export type FilterValues = { q: string; priority: string; type: string; group: string };
 
 /** GET form that updates the URL on change, so filters are shareable and survive reloads. */
 export function TaskFilters({ action, values }: { action: string; values: FilterValues }) {
+  const select = `${fieldClass} py-1.5`;
   return (
     <Form
       action={action}
-      className="flex flex-wrap items-end gap-2"
+      className="flex flex-wrap items-center gap-2"
       onChange={(e) => {
-        // Selects and checkboxes apply immediately; the search box applies on Enter.
-        const target = e.target as unknown as HTMLInputElement;
-        if (target.tagName !== "INPUT" || target.type === "checkbox") e.currentTarget.requestSubmit();
+        // Selects apply immediately; the search box applies on Enter.
+        const target = e.target as unknown as HTMLElement;
+        if (target.tagName === "SELECT") e.currentTarget.requestSubmit();
       }}
     >
-      <label className="flex min-w-48 flex-1 flex-col gap-1 text-xs text-muted">
+      <div className="relative min-w-48 flex-1">
+        <SearchIcon className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted" />
+        <input
+          name="q"
+          type="search"
+          defaultValue={values.q}
+          placeholder="Search title or key, e.g. AP-12"
+          aria-label="Search"
+          className={`${inputClass} py-1.5 pl-9`}
+        />
+      </div>
+      <select name="group" defaultValue={values.group} className={select} aria-label="Group by">
+        <option value="status">Group by status</option>
+        <option value="priority">Group by priority</option>
+        <option value="type">Group by type</option>
+      </select>
+      <select name="priority" defaultValue={values.priority} className={select} aria-label="Priority">
+        <option value="">Any priority</option>
+        {PRIORITIES.map((p) => (
+          <option key={p} value={p}>
+            {PRIORITY_LABEL[p]}
+          </option>
+        ))}
+      </select>
+      <select name="type" defaultValue={values.type} className={select} aria-label="Type">
+        <option value="">Any type</option>
+        {TASK_TYPES.map((t) => (
+          <option key={t} value={t}>
+            {TYPE_LABEL[t]}
+          </option>
+        ))}
+      </select>
+      <button type="submit" className="sr-only">
         Search
-        <input name="q" defaultValue={values.q} placeholder="Title or key, e.g. AP-12" className={inputClass} />
-      </label>
-      <label className="flex flex-col gap-1 text-xs text-muted">
-        Group by
-        <select name="group" defaultValue={values.group} className={inputClass}>
-          <option value="status">Status</option>
-          <option value="priority">Priority</option>
-          <option value="type">Type</option>
-        </select>
-      </label>
-      <label className="flex flex-col gap-1 text-xs text-muted">
-        Priority
-        <select name="priority" defaultValue={values.priority} className={inputClass}>
-          <option value="">All</option>
-          {PRIORITIES.map((p) => (
-            <option key={p} value={p}>
-              {PRIORITY_LABEL[p]}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="flex flex-col gap-1 text-xs text-muted">
-        Type
-        <select name="type" defaultValue={values.type} className={inputClass}>
-          <option value="">All</option>
-          {TASK_TYPES.map((t) => (
-            <option key={t} value={t}>
-              {TYPE_LABEL[t]}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="flex h-9 items-center gap-2 text-sm">
-        <input type="checkbox" name="closed" value="1" defaultChecked={values.closed} className="size-4" />
-        Show closed
-      </label>
-      <Button type="submit" variant="secondary">
-        Apply
-      </Button>
+      </button>
     </Form>
   );
 }

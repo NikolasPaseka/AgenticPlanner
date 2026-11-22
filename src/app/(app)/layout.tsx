@@ -8,7 +8,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       <Suspense fallback={<HeaderShell />}>
         <Header />
       </Suspense>
-      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6">
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">
         <Suspense fallback={<PageSkeleton />}>{children}</Suspense>
       </main>
     </>

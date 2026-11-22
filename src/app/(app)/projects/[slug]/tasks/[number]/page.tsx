@@ -9,11 +9,15 @@ import { StatusBadge } from "@/components/task-list";
 import { Badge, Button, buttonClass, Card, cn } from "@/components/ui";
 import { getDb } from "@/lib/db";
 import { allowedTransitions, type TaskStatus } from "@/lib/domain/tasks";
-import { desc, eq } from "drizzle-orm";
-import { reviews as reviewsTable } from "@/lib/db/schema";
 import { listRunsForTask } from "@/lib/services/agents";
 import { getProjectBySlug } from "@/lib/services/projects";
-import { getTaskByNumber, getTimeline, type TaskEvent, type TimelineItem } from "@/lib/services/tasks";
+import {
+  getTaskByNumber,
+  getTimeline,
+  listReviewsForTasks,
+  type TaskEvent,
+  type TimelineItem,
+} from "@/lib/services/tasks";
 import {
   PRIORITY_CLASS,
   PRIORITY_LABEL,
@@ -23,6 +27,7 @@ import {
   timeAgo,
 } from "@/lib/ui/labels";
 import { intParam, orNotFound } from "@/lib/ui/load";
+import { tabForStatus } from "@/lib/ui/tabs";
 
 function describeEvent(e: TaskEvent): string {
   switch (e.type) {
@@ -108,7 +113,7 @@ function Timeline({ items }: { items: TimelineItem[] }) {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="flex flex-col gap-2">
-      <h2 className="text-sm font-semibold">{title}</h2>
+      <h3 className="text-sm font-semibold">{title}</h3>
       {children}
     </section>
   );
@@ -132,32 +137,29 @@ export default async function TaskPage({ params }: PageProps<"/projects/[slug]/t
   const [timeline, runs, taskReviews] = await Promise.all([
     getTimeline(db, task.id),
     listRunsForTask(db, task.id),
-    db.select().from(reviewsTable).where(eq(reviewsTable.taskId, task.id)).orderBy(desc(reviewsTable.createdAt)),
+    listReviewsForTasks(db, [task.id]),
   ]);
   // Merging happens through the review flow once a PR exists (M3), never by a plain button.
   // In review, decisions go through the review queue so the PR is merged, commented, or closed too.
   const transitions =
     task.status === "in_review" ? [] : allowedTransitions(task.status, "owner").filter((s) => s !== "merged");
   const key = `${project.key}-${task.number}`;
+  const tab = tabForStatus(task.status);
   const canRunNow =
     githubConfigured() &&
     !!project.githubInstallationId &&
     (task.status === "todo" || task.status === "changes_requested");
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5">
       <div>
         <p className="text-sm text-muted">
-          <Link href="/" className="hover:underline">
-            Projects
-          </Link>{" "}
-          /{" "}
-          <Link href={`/projects/${project.slug}`} className="hover:underline">
-            {project.name}
+          <Link href={`/projects/${project.slug}${tab.path ? `/${tab.path}` : ""}`} className="hover:text-fg hover:underline">
+            {tab.label}
           </Link>{" "}
           / <span className="font-mono">{key}</span>
         </p>
-        <h1 className="mt-1 text-xl font-semibold">{task.title}</h1>
+        <h2 className="mt-1 text-xl font-semibold tracking-tight">{task.title}</h2>
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           <StatusBadge status={task.status} />
           <Badge className={PRIORITY_CLASS[task.priority]}>{PRIORITY_LABEL[task.priority]}</Badge>
@@ -222,7 +224,7 @@ export default async function TaskPage({ params }: PageProps<"/projects/[slug]/t
                     {r.findings.length > 0 && (
                       <ul className="flex flex-col gap-1 text-sm">
                         {r.findings.map((f, i) => (
-                          <li key={i} className="flex gap-2">
+                          <li key={i} className="flex items-start gap-2">
                             <Badge className={f.severity === "critical" || f.severity === "major" ? "text-red-600 dark:text-red-400" : "text-muted"}>
                               {f.severity}
                             </Badge>
@@ -253,11 +255,16 @@ export default async function TaskPage({ params }: PageProps<"/projects/[slug]/t
 
         <aside className="flex flex-col gap-4">
           <Card className="flex flex-col gap-3 p-4">
-            <h2 className="text-sm font-semibold">Status</h2>
+            <h3 className="text-sm font-semibold">Status</h3>
             <StatusBadge status={task.status} />
             {task.status === "in_review" && (
-              <Link href={`/projects/${project.slug}/review`} className={buttonClass("primary", "sm")}>
-                Open in review queue
+              <Link href={`/projects/${project.slug}/review/${task.number}`} className={buttonClass("primary", "sm")}>
+                Review changes
+              </Link>
+            )}
+            {task.status !== "in_review" && task.prNumber && (
+              <Link href={`/projects/${project.slug}/review/${task.number}`} className={buttonClass("secondary", "sm")}>
+                View changes
               </Link>
             )}
             {transitions.length > 0 && (
@@ -281,7 +288,7 @@ export default async function TaskPage({ params }: PageProps<"/projects/[slug]/t
           </Card>
 
           <Card className="flex flex-col gap-2 p-4">
-            <h2 className="text-sm font-semibold">Agents</h2>
+            <h3 className="text-sm font-semibold">Agents</h3>
             <p className="text-xs text-muted">
               {task.onHold
                 ? "On hold: agents will not pick up this task."
@@ -299,7 +306,7 @@ export default async function TaskPage({ params }: PageProps<"/projects/[slug]/t
 
           {runs.length > 0 && (
             <Card className="flex flex-col gap-2 p-4">
-              <h2 className="text-sm font-semibold">Agent runs</h2>
+              <h3 className="text-sm font-semibold">Agent runs</h3>
               <ul className="flex flex-col gap-2.5 text-sm">
                 {runs.map((r) => (
                   <li key={r.id} className="flex flex-col gap-1.5">

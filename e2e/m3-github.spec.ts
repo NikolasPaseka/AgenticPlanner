@@ -82,6 +82,8 @@ test("approve merges the PR with a merge commit at the reviewed commit", async (
   await page.waitForURL(/\/review$/);
   await expect(visible(page.getByText("Checks passed"))).toBeVisible();
   await expect(visible(page.getByText("Login added with tests."))).toBeVisible();
+  await visible(page.getByRole("link", { name: "Review changes" })).click();
+  await page.waitForURL(/\/review\/1$/);
   await visible(page.getByRole("button", { name: "Approve and merge" })).click();
   await expect(visible(page.getByText("Nothing to review right now."))).toBeVisible();
 
@@ -95,7 +97,7 @@ test("approve merges the PR with a merge commit at the reviewed commit", async (
 
 test("approve refuses when new commits arrived after the review was opened", async ({ page, baseURL, request }) => {
   const { slug, repo } = await setUpTaskInReview(page, baseURL!, request);
-  await page.goto(`/projects/${slug}/review`);
+  await page.goto(`/projects/${slug}/review/1`);
   await expect(visible(page.getByRole("button", { name: "Approve and merge" }))).toBeVisible();
   // The agent pushes again on GitHub, but this page still shows the old commit.
   await request.post(`${FAKE_GITHUB_URL}/__pr`, { data: { repo: `octo/${repo}`, number: 12, pr: { headSha: "newsha9" } } });
@@ -105,7 +107,7 @@ test("approve refuses when new commits arrived after the review was opened", asy
 
 test("request changes comments on the PR and returns the task", async ({ page, baseURL, request }) => {
   const { slug, repo } = await setUpTaskInReview(page, baseURL!, request);
-  await page.goto(`/projects/${slug}/review`);
+  await page.goto(`/projects/${slug}/review/1`);
   await visible(page.getByRole("button", { name: "Request changes" })).click();
   await visible(page.getByLabel(/What should change/)).fill("Please add a logout button too.");
   await visible(page.getByRole("button", { name: "Send back to agent" })).click();
@@ -119,7 +121,7 @@ test("request changes comments on the PR and returns the task", async ({ page, b
 
 test("reject closes the PR and returns the task to Todo", async ({ page, baseURL, request }) => {
   const { slug, repo } = await setUpTaskInReview(page, baseURL!, request);
-  await page.goto(`/projects/${slug}/review`);
+  await page.goto(`/projects/${slug}/review/1`);
   await visible(page.getByRole("button", { name: "Reject" })).click();
   await visible(page.getByLabel("After rejecting")).selectOption("todo");
   await visible(page.locator('textarea[name="reason"]')).fill("Wrong approach");

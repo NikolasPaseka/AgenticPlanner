@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requireOwner } from "@/auth";
 import { RunStatusBadge } from "@/components/run-status";
 import { StopRunButton } from "@/components/runs";
-import { Card } from "@/components/ui";
+import { Card, EmptyState } from "@/components/ui";
 import { getDb } from "@/lib/db";
 import { listRuns } from "@/lib/services/dispatch";
 import { getProjectBySlug } from "@/lib/services/projects";
@@ -18,28 +18,14 @@ export default async function RunsPage({ params }: PageProps<"/projects/[slug]/r
   const active = runs.filter((r) => r.run.status === "queued" || r.run.status === "running").length;
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <p className="text-sm text-muted">
-          <Link href="/" className="hover:underline">
-            Projects
-          </Link>{" "}
-          /{" "}
-          <Link href={`/projects/${project.slug}`} className="hover:underline">
-            {project.name}
-          </Link>
-        </p>
-        <h1 className="text-xl font-semibold">Agent runs</h1>
-        <p className="text-sm text-muted">
-          {active} of {project.settings.maxParallelRuns} agent slots in use. Auto-dispatch is{" "}
-          {project.settings.autoDispatch ? "on" : "off"} for this project.
-        </p>
-      </div>
+    <div className="flex flex-col gap-4">
+      <p className="text-sm text-muted">
+        {active} of {project.settings.maxParallelRuns} agent slots in use. Auto-dispatch is{" "}
+        {project.settings.autoDispatch ? "on" : "off"} for this project.
+      </p>
 
       {runs.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border px-4 py-10 text-center text-sm text-muted">
-          No agent runs yet.
-        </div>
+        <EmptyState title="No agent runs yet.">Runs appear here when an agent starts a task.</EmptyState>
       ) : (
         <Card>
           <ul className="divide-y divide-border">

@@ -8,6 +8,32 @@ import { createServer } from "node:http";
 const port = Number(process.env.FAKE_GITHUB_PORT ?? 55434);
 type Call = { method: string; path: string; body: unknown };
 let calls: Call[] = [];
+
+/** Files every fake pull request changes, for the change browser. */
+const SAMPLE_FILES = [
+  {
+    filename: "src/login.ts",
+    status: "modified",
+    additions: 2,
+    deletions: 1,
+    patch: [
+      "@@ -1,3 +1,4 @@",
+      " import { auth } from './auth';",
+      "-export const login = () => auth();",
+      "+export const login = () => auth({ remember: true });",
+      "+export const logout = () => auth.signOut();",
+      " export default login;",
+    ].join("\n"),
+  },
+  {
+    filename: "src/login.test.ts",
+    status: "added",
+    additions: 1,
+    deletions: 0,
+    patch: ["@@ -0,0 +1 @@", "+test('login', () => {});"].join("\n"),
+  },
+  { filename: "public/logo.png", status: "added", additions: 0, deletions: 0 },
+];
 const prs = new Map<string, { state: string; merged: boolean; mergeable: boolean; headSha: string; headRef: string }>();
 
 const json = (res: import("node:http").ServerResponse, status: number, body?: unknown) => {
@@ -57,6 +83,18 @@ createServer(async (req, res) => {
       head: { ref: pr.headRef, sha: pr.headSha },
       html_url: `https://github.com/${m[1]}/pull/${m[2]}`,
     });
+  }
+  if (method === "GET" && /^\/repos\/[^/]+\/[^/]+\/pulls\/\d+\/files$/.test(path)) {
+    return json(res, 200, SAMPLE_FILES);
+  }
+  if (method === "GET" && /^\/repos\/[^/]+\/[^/]+\/pulls\/\d+\/commits$/.test(path)) {
+    return json(res, 200, [
+      {
+        sha: "abc123def456",
+        commit: { message: "Add login form\n\nWith tests.", author: { name: "claude", date: "2026-01-01T00:00:00Z" } },
+        author: { login: "agentplanner-bot" },
+      },
+    ]);
   }
   if (method === "PUT" && (m = path.match(/^\/repos\/([^/]+\/[^/]+)\/pulls\/(\d+)\/merge$/))) {
     const key = `${m[1].toLowerCase()}#${m[2]}`;

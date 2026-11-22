@@ -12,18 +12,19 @@ export async function signIn(page: Page) {
   await page.waitForURL((url) => url.pathname === "/");
 }
 
-/** The form starts open when there are no projects yet. */
+/** Opens the New project dialog on the projects page and returns it. */
 export async function openNewProjectForm(page: Page) {
-  const details = visible(page.locator("details").filter({ hasText: "+ New project" }));
-  if ((await details.getAttribute("open")) === null) await details.locator("summary").click();
+  await visible(page.getByRole("button", { name: "New project" })).first().click();
+  const dialog = page.getByRole("dialog", { name: "New project" });
+  await expect(dialog).toBeVisible();
+  return dialog;
 }
 
 /** A unique project per test, so tests do not depend on each other. */
 export async function createProject(page: Page, github?: { owner: string; repo: string }) {
   const key = "T" + Math.random().toString(36).slice(2, 7).toUpperCase();
   await page.goto("/");
-  await openNewProjectForm(page);
-  const form = page.locator("form").filter({ has: page.getByRole("button", { name: "Create project" }) });
+  const form = await openNewProjectForm(page);
   await form.getByLabel("Name").fill(`Project ${key}`);
   await form.getByLabel("Task key").fill(key.toLowerCase());
   if (github) {
@@ -35,14 +36,16 @@ export async function createProject(page: Page, github?: { owner: string; repo: 
   return { key, slug: `project-${key.toLowerCase()}` };
 }
 
+/** Adds a task through the New task dialog; call it on the project's Planned tab. */
 export async function addTask(page: Page, title: string, opts: { priority?: string; status?: string } = {}) {
-  const details = visible(page.locator("details").filter({ hasText: "+ New task" }));
-  if ((await details.getAttribute("open")) === null) await details.locator("summary").click();
-  const form = details.locator("form");
+  await visible(page.getByRole("button", { name: "New task" })).click();
+  const form = page.getByRole("dialog", { name: "New task" });
+  await expect(form).toBeVisible();
   await form.getByLabel("Title").fill(title);
   if (opts.priority) await form.locator('select[name="priority"]').selectOption(opts.priority);
   if (opts.status) await form.locator('select[name="status"]').selectOption(opts.status);
   await form.getByRole("button", { name: "Add task" }).click();
+  await expect(form).toBeHidden();
   await expect(visible(page.getByRole("link", { name: new RegExp(title) }))).toBeVisible();
 }
 

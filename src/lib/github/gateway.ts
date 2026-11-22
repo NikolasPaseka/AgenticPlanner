@@ -1,5 +1,17 @@
 import { App, Octokit } from "octokit";
 
+export type PullRequestFile = {
+  filename: string;
+  previousFilename?: string;
+  status: "added" | "removed" | "modified" | "renamed" | "copied" | "changed" | "unchanged";
+  additions: number;
+  deletions: number;
+  /** Unified diff. GitHub leaves it out for binary and very large files. */
+  patch?: string;
+};
+
+export type PullRequestCommit = { sha: string; message: string; author: string; date: string | null };
+
 /** What AgentPlanner needs from GitHub. Tests use a fake; production uses the GitHub App. */
 export interface GitHubGateway {
   findInstallation(owner: string, repo: string): Promise<number | null>;
@@ -9,6 +21,8 @@ export interface GitHubGateway {
     repo: string,
     number: number,
   ): Promise<{ state: "open" | "closed"; merged: boolean; mergeable: boolean | null; headRef: string; headSha: string; htmlUrl: string }>;
+  listPullRequestFiles(installationId: number, owner: string, repo: string, number: number): Promise<PullRequestFile[]>;
+  listPullRequestCommits(installationId: number, owner: string, repo: string, number: number): Promise<PullRequestCommit[]>;
   mergePullRequest(
     installationId: number,
     owner: string,
@@ -79,6 +93,44 @@ export function createGitHubGateway(): GitHubGateway {
         headSha: data.head.sha,
         htmlUrl: data.html_url,
       };
+    },
+    async listPullRequestFiles(installationId, owner, repo, number) {
+      const octokit = await kit(installationId);
+      const files: PullRequestFile[] = [];
+      // GitHub returns at most 3000 files, 100 per page.
+      for (let page = 1; page <= 30; page++) {
+        const { data } = await octokit.request("GET /repos/{owner}/{repo}/pulls/{pull_number}/files", {
+          owner,
+          repo,
+          pull_number: number,
+          per_page: 100,
+          page,
+        });
+        for (const f of data) {
+          files.push({
+            filename: f.filename,
+            previousFilename: f.previous_filename,
+            status: f.status,
+            additions: f.additions,
+            deletions: f.deletions,
+            patch: f.patch,
+          });
+        }
+        if (data.length < 100) break;
+      }
+      return files;
+    },
+    async listPullRequestCommits(installationId, owner, repo, number) {
+      const { data } = await (await kit(installationId)).request(
+        "GET /repos/{owner}/{repo}/pulls/{pull_number}/commits",
+        { owner, repo, pull_number: number, per_page: 100 },
+      );
+      return data.map((c) => ({
+        sha: c.sha,
+        message: c.commit.message,
+        author: c.author?.login ?? c.commit.author?.name ?? "unknown",
+        date: c.commit.author?.date ?? null,
+      }));
     },
     async mergePullRequest(installationId, owner, repo, number, { method, title, sha }) {
       const { data } = await (await kit(installationId)).request("PUT /repos/{owner}/{repo}/pulls/{pull_number}/merge", {

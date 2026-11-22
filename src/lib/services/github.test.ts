@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Db } from "@/lib/db";
-import type { GitHubGateway } from "@/lib/github/gateway";
+import { GitHubNotConfiguredError, type GitHubGateway } from "@/lib/github/gateway";
 import { signGitHubBody, verifyGitHubSignature } from "@/lib/github/webhook-signature";
 import { createTestDb } from "@/test/db";
 import type { Actor } from "./actor";
@@ -10,6 +10,7 @@ import {
   connectRepository,
   countReviewQueue,
   extractTaskNumber,
+  getTaskChanges,
   handleGitHubEvent,
   recordDelivery,
   rejectTask,
@@ -27,6 +28,10 @@ function fakeGitHub(overrides: Partial<GitHubGateway> = {}) {
   const base: GitHubGateway = {
     findInstallation: async () => 99,
     getPullRequest: async () => pr,
+    listPullRequestFiles: async () => [
+      { filename: "src/login.ts", status: "added", additions: 2, deletions: 0, patch: "@@ -0,0 +1,2 @@\n+a\n+b" },
+    ],
+    listPullRequestCommits: async () => [{ sha: "abc123", message: "Add login", author: "claude", date: null }],
     mergePullRequest: async () => ({ sha: "merge999" }),
     closePullRequest: async () => undefined,
     comment: async () => undefined,
@@ -280,5 +285,44 @@ describe("Vercel deployments (GitHub deployment_status)", () => {
     const done = await getTaskByNumber(db, project.id, 1);
     expect(done.status).toBe("done");
     expect(done.productionDeployedAt).not.toBeNull();
+  });
+});
+
+describe("browsing a task's changes", () => {
+  const connected = { githubOwner: "octo", githubRepo: "planner", githubInstallationId: 99 };
+
+  it("reads the PR files and commits through the GitHub App", async () => {
+    const { gw, calls } = fakeGitHub();
+    const changes = await getTaskChanges(gw, connected, { prNumber: 7 });
+    expect(changes.ok && changes.files[0].filename).toBe("src/login.ts");
+    expect(changes.ok && changes.commits[0].sha).toBe("abc123");
+    expect(calls.find((c) => c.name === "listPullRequestFiles")?.args).toEqual([99, "octo", "planner", 7]);
+  });
+
+  it("explains why changes are unavailable instead of failing", async () => {
+    const { gw, calls } = fakeGitHub();
+    expect(await getTaskChanges(gw, connected, { prNumber: null })).toMatchObject({ ok: false, reason: /No pull request/ });
+    expect(await getTaskChanges(gw, { ...connected, githubInstallationId: null }, { prNumber: 7 })).toMatchObject({
+      ok: false,
+      reason: /not connected/,
+    });
+    expect(calls).toHaveLength(0);
+
+    const missing = fakeGitHub({
+      listPullRequestFiles: async () => {
+        throw Object.assign(new Error("Not Found"), { status: 404 });
+      },
+    });
+    expect(await getTaskChanges(missing.gw, connected, { prNumber: 7 })).toMatchObject({ ok: false, reason: /could not find/ });
+
+    const unconfigured = fakeGitHub({
+      listPullRequestFiles: async () => {
+        throw new GitHubNotConfiguredError();
+      },
+    });
+    expect(await getTaskChanges(unconfigured.gw, connected, { prNumber: 7 })).toMatchObject({
+      ok: false,
+      reason: /not configured/,
+    });
   });
 });

@@ -34,8 +34,9 @@ the AgentPlanner MCP server.
    preview URL to the task.
 5. **Review.** The reviewer agent runs on the PR, records a `review` with
    findings, and proposes follow-up tasks for out-of-scope issues.
-6. **Approve.** The owner opens the review queue and sees the task, PR diff
-   link, preview URL, CI status, and reviewer findings. Then:
+6. **Approve.** The owner opens the Review tab, then the task's change
+   browser: the PR diff with reviewer findings on their lines, commits,
+   preview URL, and CI status. Then:
    - **Approve and merge:** the app merges with a merge commit and
      deletes the branch. Task becomes `merged`.
    - **Request changes:** the owner writes feedback. The app comments on the

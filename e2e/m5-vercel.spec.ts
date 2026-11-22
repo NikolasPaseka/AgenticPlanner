@@ -54,7 +54,7 @@ test("preview URL shows in review; production deploy marks the task done", async
   });
   await webhook(request, "deployment_status", deployment("Preview", "abc123", `agent/${key}-1-ship-it`, "https://ship-it-preview.vercel.app"));
 
-  await page.goto(`/projects/${slug}/review`);
+  await page.goto(`/projects/${slug}/review/1`);
   await expect(visible(page.getByRole("link", { name: "Preview" }))).toHaveAttribute("href", "https://ship-it-preview.vercel.app");
   await visible(page.getByRole("button", { name: "Approve and merge" })).click();
   await expect(visible(page.getByText("Nothing to review right now."))).toBeVisible();

@@ -1,3 +1,4 @@
+import { cacheLife } from "next/cache";
 import Link from "next/link";
 import { requireOwner } from "@/auth";
 import { ChevronIcon } from "@/components/icons";
@@ -10,15 +11,23 @@ import { listAgentComments, listReviewsForTasks } from "@/lib/services/tasks";
 import { PRIORITY_CLASS, PRIORITY_LABEL, timeAgo } from "@/lib/ui/labels";
 import { orNotFound } from "@/lib/ui/load";
 
-/** Review tab: pull requests waiting for the owner, oldest first. */
-export default async function ReviewQueuePage({ params }: PageProps<"/projects/[slug]/review">) {
-  await requireOwner();
-  const { slug } = await params;
+/** Fresh on every server request; the browser may reuse a prefetched copy for 30 seconds (see TaskTab). */
+async function loadQueue(slug: string) {
+  "use cache: private";
+  cacheLife({ stale: 30 });
   const db = getDb();
   const project = await orNotFound(getProjectBySlug(db, slug));
   const queue = await listReviewQueue(db, project.id);
   const ids = queue.map((t) => t.id);
   const [taskReviews, summaries] = await Promise.all([listReviewsForTasks(db, ids), listAgentComments(db, ids)]);
+  return { project, queue, taskReviews, summaries, now: new Date() };
+}
+
+/** Review tab: pull requests waiting for the owner, oldest first. */
+export default async function ReviewQueuePage({ params }: PageProps<"/projects/[slug]/review">) {
+  await requireOwner();
+  const { slug } = await params;
+  const { project, queue, taskReviews, summaries, now } = await loadQueue(slug);
 
   return (
     <div className="flex flex-col gap-4">
@@ -51,7 +60,7 @@ export default async function ReviewQueuePage({ params }: PageProps<"/projects/[
                     </Link>
                     <p className="mt-0.5 text-xs text-muted">
                       <span className={cn(PRIORITY_CLASS[task.priority])}>{PRIORITY_LABEL[task.priority]} priority</span>
-                      {" · "}submitted {timeAgo(task.updatedAt)}
+                      {" · "}submitted {timeAgo(task.updatedAt, now)}
                     </p>
                   </div>
                   <Link href={href} className={buttonClass("primary", "sm")}>

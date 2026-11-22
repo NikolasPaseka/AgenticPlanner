@@ -70,11 +70,13 @@ function TaskRow({
   projectKey,
   slug,
   showStatus,
+  now,
 }: {
   task: Task;
   projectKey: string;
   slug: string;
   showStatus: boolean;
+  now: Date;
 }) {
   return (
     <li className="group/row relative flex items-center gap-3 px-4 py-3 transition hover:bg-surface-2">
@@ -118,7 +120,7 @@ function TaskRow({
         className="hidden w-24 shrink-0 text-right text-xs text-muted lg:block"
         title={`Updated ${task.updatedAt.toISOString()}`}
       >
-        {timeAgo(task.updatedAt)}
+        {timeAgo(task.updatedAt, now)}
       </time>
       {task.status === "proposed" && (
         <div className="relative z-10">
@@ -135,6 +137,7 @@ export function TaskGroups({
   projectKey,
   slug,
   empty,
+  now,
 }: {
   tasks: Task[];
   groupBy: GroupBy;
@@ -142,6 +145,8 @@ export function TaskGroups({
   slug: string;
   /** Shown when there are no tasks. */
   empty: { title: string; body?: string };
+  /** When the tasks were loaded, for "updated 5m ago". */
+  now: Date;
 }) {
   const groups = groupTasks(tasks, groupBy);
   if (groups.length === 0) return <EmptyState title={empty.title}>{empty.body}</EmptyState>;
@@ -159,7 +164,7 @@ export function TaskGroups({
           </summary>
           <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface shadow-card">
             {g.tasks.map((t) => (
-              <TaskRow key={t.id} task={t} projectKey={projectKey} slug={slug} showStatus={groupBy !== "status"} />
+              <TaskRow key={t.id} task={t} projectKey={projectKey} slug={slug} showStatus={groupBy !== "status"} now={now} />
             ))}
           </ul>
         </details>

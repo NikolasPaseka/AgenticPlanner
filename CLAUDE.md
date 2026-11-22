@@ -36,6 +36,10 @@ Milestones M1 to M5 and a UI redesign (project tabs, change browser, light and d
 - Every server action and page calls `requireOwner()` first.
 - Cache Components is on: dynamic data must render inside `<Suspense>` or a
   `loading.tsx` boundary.
+- Project tab pages load data in a `"use cache: private"` function with
+  `cacheLife({ stale: 30 })` so tab links can prefetch it (decision 22). Do not
+  call `connection()` or read the clock outside that function on those pages;
+  either one stops the prefetch, and `e2e/ui.spec.ts` will fail.
 - Before opening a PR run `npm run lint`, `npm run typecheck`, `npm test`,
   `npm run test:e2e`, and `npm run build`. Add an e2e spec for each milestone
   and tick its checklist in [docs/testing.md](docs/testing.md).

@@ -67,12 +67,18 @@ export async function ProjectHeader({ params }: { params: Promise<{ slug: string
       <ProjectTabs
         slug={project.slug}
         tabs={[
-          { segment: null, label: "Planned", count: tabCount(counts, "planned"), highlight: !!counts.proposed },
-          { segment: "in-progress", label: "In progress", count: tabCount(counts, "in-progress") },
-          { segment: "review", label: "Review", count: tabCount(counts, "review"), highlight: true },
-          { segment: "done", label: "Done", count: tabCount(counts, "done") },
-          { segment: "runs", label: "Runs" },
-          { segment: "settings", label: "Settings" },
+          {
+            segment: null,
+            label: "Planned",
+            count: tabCount(counts, "planned"),
+            highlight: !!counts.proposed,
+            prefetch: true,
+          },
+          { segment: "in-progress", label: "In progress", count: tabCount(counts, "in-progress"), prefetch: true },
+          { segment: "review", label: "Review", count: tabCount(counts, "review"), highlight: true, prefetch: true },
+          { segment: "done", label: "Done", count: tabCount(counts, "done"), prefetch: true },
+          { segment: "runs", label: "Runs", prefetch: true },
+          { segment: "settings", label: "Settings", prefetch: true },
         ]}
       />
     </div>

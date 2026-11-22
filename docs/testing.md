@@ -111,6 +111,7 @@ them from the `deployment_status` webhook (no Vercel webhook or Pro plan needed)
 
 ### UI redesign
 - [x] (auto) Tabs split tasks into Planned, In progress, Review, and Done, with counts.
+- [x] (auto) Switching tabs is instant: the prefetch already holds the tab's tasks (`instant()` from `@next/playwright`).
 - [x] (auto) The New task dialog adds a task, resets, closes, and Escape dismisses it.
 - [x] (auto) The change browser shows the PR files, commits, and the diff, with reviewer findings on their lines.
 - [x] (auto) Approving, requesting changes, or rejecting from the change browser returns to the review queue.

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { connection } from "next/server";
 import { requireOwner } from "@/auth";
 import { setTaskHoldAction, transitionTaskAction } from "@/app/actions";
 import { CommentForm, EditTaskForm } from "@/components/forms";
@@ -130,6 +131,7 @@ function Meta({ label, children }: { label: string; children: React.ReactNode })
 
 export default async function TaskPage({ params }: PageProps<"/projects/[slug]/tasks/[number]">) {
   await requireOwner();
+  await connection(); // Renders at request time: the page shows relative times ("5m ago").
   const { slug, number } = await params;
   const db = getDb();
   const project = await orNotFound(getProjectBySlug(db, slug));

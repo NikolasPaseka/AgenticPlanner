@@ -1,7 +1,8 @@
+import { cacheLife } from "next/cache";
 import { requireOwner } from "@/auth";
 import { getDb } from "@/lib/db";
 import { getProjectBySlug } from "@/lib/services/projects";
-import { listTasks } from "@/lib/services/tasks";
+import { listTasks, type TaskFilters as Filters } from "@/lib/services/tasks";
 import { taskTab, type TaskTabId } from "@/lib/ui/tabs";
 import { orNotFound } from "@/lib/ui/load";
 import { PRIORITIES, TASK_TYPES } from "@/lib/validation";
@@ -10,6 +11,20 @@ import { TaskGroups, type GroupBy } from "./task-list";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
+
+/**
+ * The project and its tasks for one tab. Runs on every server request (private
+ * caches are not stored on the server); the browser may reuse a prefetched copy
+ * for 30 seconds, and any owner action clears it.
+ */
+async function loadTab(slug: string, filters: Filters) {
+  "use cache: private";
+  cacheLife({ stale: 30 });
+  const db = getDb();
+  const project = await orNotFound(getProjectBySlug(db, slug));
+  const tasks = await listTasks(db, project, filters);
+  return { project, tasks, now: new Date() };
+}
 
 /** A project tab listing tasks in the tab's statuses, with search and grouping. */
 export async function TaskTab({
@@ -26,8 +41,6 @@ export async function TaskTab({
   await requireOwner();
   const { slug } = await params;
   const sp = await searchParams;
-  const db = getDb();
-  const project = await orNotFound(getProjectBySlug(db, slug));
   const { statuses, path } = taskTab(tab);
 
   const group = (["status", "priority", "type"] as const).find((g) => g === one(sp.group)) ?? "status";
@@ -36,7 +49,7 @@ export async function TaskTab({
   const q = one(sp.q).slice(0, 200);
   const filtered = !!(q || priority || type);
 
-  const tasks = await listTasks(db, project, {
+  const { project, tasks, now } = await loadTab(slug, {
     q,
     priority,
     type,
@@ -54,6 +67,7 @@ export async function TaskTab({
         projectKey={project.key}
         slug={project.slug}
         empty={filtered ? { title: "No tasks match these filters." } : empty}
+        now={now}
       />
     </div>
   );

@@ -1,3 +1,4 @@
+import { cacheLife } from "next/cache";
 import Link from "next/link";
 import { requireOwner } from "@/auth";
 import { RunStatusBadge } from "@/components/run-status";
@@ -9,12 +10,20 @@ import { getProjectBySlug } from "@/lib/services/projects";
 import { timeAgo } from "@/lib/ui/labels";
 import { orNotFound } from "@/lib/ui/load";
 
-export default async function RunsPage({ params }: PageProps<"/projects/[slug]/runs">) {
-  await requireOwner();
-  const { slug } = await params;
+/** Fresh on every server request; the browser may reuse a prefetched copy for 30 seconds (see TaskTab). */
+async function loadRuns(slug: string) {
+  "use cache: private";
+  cacheLife({ stale: 30 });
   const db = getDb();
   const project = await orNotFound(getProjectBySlug(db, slug));
   const runs = await listRuns(db, project.id);
+  return { project, runs, now: new Date() };
+}
+
+export default async function RunsPage({ params }: PageProps<"/projects/[slug]/runs">) {
+  await requireOwner();
+  const { slug } = await params;
+  const { project, runs, now } = await loadRuns(slug);
   const active = runs.filter((r) => r.run.status === "queued" || r.run.status === "running").length;
 
   return (
@@ -45,8 +54,8 @@ export default async function RunsPage({ params }: PageProps<"/projects/[slug]/r
                     )}
                   </p>
                   <p className="text-xs text-muted">
-                    {run.agent} ({run.role}) · started {timeAgo(run.startedAt ?? run.createdAt)}
-                    {run.finishedAt && ` · finished ${timeAgo(run.finishedAt)}`}
+                    {run.agent} ({run.role}) · started {timeAgo(run.startedAt ?? run.createdAt, now)}
+                    {run.finishedAt && ` · finished ${timeAgo(run.finishedAt, now)}`}
                     {run.costUsd && ` · $${Number(run.costUsd).toFixed(2)}`}
                     {run.cancelledBy && ` · stopped by ${run.cancelledBy}`}
                     {run.githubRunUrl && (

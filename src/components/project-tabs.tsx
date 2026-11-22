@@ -4,7 +4,14 @@ import Link from "next/link";
 import { useSelectedLayoutSegment } from "next/navigation";
 import { cn } from "./ui";
 
-export type ProjectTab = { segment: string | null; label: string; count?: number; highlight?: boolean };
+export type ProjectTab = {
+  segment: string | null;
+  label: string;
+  count?: number;
+  highlight?: boolean;
+  /** Prefetch the tab's content too, not just its loading skeleton, so switching to it is instant. */
+  prefetch?: boolean;
+};
 
 /** Tab bar under the project header. The active tab follows the URL. */
 export function ProjectTabs({ slug, tabs }: { slug: string; tabs: ProjectTab[] }) {
@@ -17,6 +24,7 @@ export function ProjectTabs({ slug, tabs }: { slug: string; tabs: ProjectTab[] }
           <Link
             key={tab.label}
             href={tab.segment ? `/projects/${slug}/${tab.segment}` : `/projects/${slug}`}
+            prefetch={tab.prefetch ? true : "auto"}
             aria-current={current ? "page" : undefined}
             aria-label={tab.count !== undefined ? `${tab.label} (${tab.count})` : undefined}
             className={cn(

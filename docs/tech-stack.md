@@ -21,7 +21,7 @@ MongoDB, PostgreSQL.
 | Background work | Webhook handlers + Vercel Cron; Inngest if it grows | No extra infrastructure in v1. |
 | Validation | Zod | One schema for forms, REST, and MCP tools. |
 | Testing | Vitest + PGlite, Playwright | Unit and service tests against in-memory Postgres; end-to-end in Chrome. See [testing.md](testing.md). |
-| Hosting | Vercel: preview per PR, production on `main` | The same pipeline the app manages for other projects. |
+| Hosting | Vercel: preview per PR, production on `main`; functions in `cle1`, next to Neon in `us-east-2` | The same pipeline the app manages for other projects. If you move the database, change `regions` in `vercel.json` to match. |
 
 ## PostgreSQL vs MongoDB
 

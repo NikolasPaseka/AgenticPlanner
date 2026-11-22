@@ -1,3 +1,4 @@
+import { instant } from "@next/playwright";
 import { expect, test } from "@playwright/test";
 import { addTask, call, connectRepo, createProject, createToken, mcpClient, setAutoDispatch, signIn, visible } from "./helpers";
 
@@ -30,6 +31,23 @@ test("tabs split tasks into planned, in progress, review, and done", async ({ pa
   await visible(page.getByRole("link", { name: "Done (0)" })).click();
   await page.waitForURL(new RegExp(`/projects/${slug}/done$`));
   await expect(visible(page.getByText("Nothing finished yet."))).toBeVisible();
+});
+
+test("switching tabs is instant: the prefetch already holds the tab's tasks", async ({ page }) => {
+  const { slug } = await createProject(page);
+  await addTask(page, "Ship it");
+  await visible(page.getByRole("link", { name: /Ship it/ })).click();
+  await visible(page.getByRole("button", { name: "Start work" })).click();
+  await expect(visible(page.getByText("moved it from Todo to In progress"))).toBeVisible();
+  await page.goto(`/projects/${slug}`);
+
+  // Inside instant(), the page only shows what was prefetched; nothing renders on the server after the click.
+  await instant(page, async () => {
+    await visible(page.getByRole("link", { name: "In progress (1)" })).click();
+    await page.waitForURL(new RegExp(`/projects/${slug}/in-progress$`));
+    await expect(visible(page.getByRole("link", { name: /Ship it/ }))).toBeVisible();
+    await expect(visible(page.getByLabel("Loading"))).toHaveCount(0);
+  });
 });
 
 test("the New task dialog closes after adding and Escape dismisses it", async ({ page }) => {

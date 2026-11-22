@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { requireOwner } from "@/auth";
 import { CommitList, DiffView, type PlacedFinding } from "@/components/diff-view";
@@ -58,6 +59,7 @@ function ChangesSkeleton() {
 /** Change browser: the agent's summary, the reviewer's findings, and the diff, with the decision alongside. */
 export default async function ReviewTaskPage({ params }: PageProps<"/projects/[slug]/review/[number]">) {
   await requireOwner();
+  await connection(); // Renders at request time: the page shows relative times ("5m ago").
   const { slug, number } = await params;
   const db = getDb();
   const project = await orNotFound(getProjectBySlug(db, slug));

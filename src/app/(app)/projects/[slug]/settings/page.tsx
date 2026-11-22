@@ -1,3 +1,4 @@
+import { cacheLife } from "next/cache";
 import { headers } from "next/headers";
 import { requireOwner } from "@/auth";
 import { revokeApiTokenAction } from "@/app/actions";
@@ -12,15 +13,15 @@ import { listApiTokens, type ApiToken } from "@/lib/services/tokens";
 import { timeAgo } from "@/lib/ui/labels";
 import { orNotFound } from "@/lib/ui/load";
 
-function TokenRow({ token }: { token: ApiToken }) {
+function TokenRow({ token, now }: { token: ApiToken; now: Date }) {
   const revoked = !!token.revokedAt;
   return (
     <li className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5">
       <span className="font-mono text-sm font-medium">{token.name}</span>
       {revoked ? <Badge className="text-muted">Revoked</Badge> : <Badge className="text-emerald-700 dark:text-emerald-300">Active</Badge>}
       <span className="text-xs text-muted">
-        {token.scopes.join(", ")} · created {timeAgo(token.createdAt)} ·{" "}
-        {token.lastUsedAt ? `last used ${timeAgo(token.lastUsedAt)}` : "never used"}
+        {token.scopes.join(", ")} · created {timeAgo(token.createdAt, now)} ·{" "}
+        {token.lastUsedAt ? `last used ${timeAgo(token.lastUsedAt, now)}` : "never used"}
       </span>
       <div className="flex-1" />
       {!revoked && (
@@ -35,15 +36,23 @@ function TokenRow({ token }: { token: ApiToken }) {
   );
 }
 
-export default async function ProjectSettingsPage({ params }: PageProps<"/projects/[slug]/settings">) {
-  await requireOwner();
-  const { slug } = await params;
+/** Fresh on every server request; the browser may reuse a prefetched copy for 30 seconds (see TaskTab). */
+async function loadSettings(slug: string) {
+  "use cache: private";
+  cacheLife({ stale: 30 });
   const db = getDb();
   const project = await orNotFound(getProjectBySlug(db, slug));
   const tokens = await listApiTokens(db, project.id);
   const h = await headers();
   const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
   const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
+  return { project, tokens, appUrl: `${proto}://${host}`, now: new Date() };
+}
+
+export default async function ProjectSettingsPage({ params }: PageProps<"/projects/[slug]/settings">) {
+  await requireOwner();
+  const { slug } = await params;
+  const { project, tokens, appUrl, now } = await loadSettings(slug);
 
   return (
     <div className="flex flex-col gap-6">
@@ -109,13 +118,13 @@ export default async function ProjectSettingsPage({ params }: PageProps<"/projec
           <Card>
             <ul className="divide-y divide-border">
               {tokens.map((t) => (
-                <TokenRow key={t.id} token={t} />
+                <TokenRow key={t.id} token={t} now={now} />
               ))}
             </ul>
           </Card>
         )}
         <Card className="p-4">
-          <CreateTokenForm projectId={project.id} appUrl={`${proto}://${host}`} />
+          <CreateTokenForm projectId={project.id} appUrl={appUrl} />
         </Card>
       </section>
     </div>

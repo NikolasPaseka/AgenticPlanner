@@ -5,7 +5,8 @@ import { Button, Card } from "@/components/ui";
 
 const ERRORS: Record<string, string> = {
   AccessDenied: "This GitHub account is not allowed. Add its login to OWNER_GITHUB_LOGINS.",
-  Configuration: "Sign-in is not configured. Check the AUTH_GITHUB_* environment variables.",
+  Configuration:
+    "Sign-in failed on the server. Check AUTH_SECRET, AUTH_GITHUB_ID, AUTH_GITHUB_SECRET and DATABASE_URL, then the server logs.",
 };
 
 async function SignInError({ searchParams }: { searchParams: PageProps<"/signin">["searchParams"] }) {

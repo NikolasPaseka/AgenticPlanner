@@ -1,13 +1,25 @@
 import Link from "next/link";
+import { connection } from "next/server";
 import { requireOwner } from "@/auth";
 import { setTaskHoldAction, transitionTaskAction } from "@/app/actions";
 import { CommentForm, EditTaskForm } from "@/components/forms";
+import { MarkdownText } from "@/components/markdown";
+import { RunAgentNowButton, StopRunButton } from "@/components/runs";
+import { RunStatusBadge } from "@/components/run-status";
+import { githubConfigured } from "@/lib/github/config";
 import { StatusBadge } from "@/components/task-list";
-import { Badge, Button, Card, cn } from "@/components/ui";
+import { Badge, Button, buttonClass, Card } from "@/components/ui";
 import { getDb } from "@/lib/db";
 import { allowedTransitions, type TaskStatus } from "@/lib/domain/tasks";
+import { listRunsForTask } from "@/lib/services/agents";
 import { getProjectBySlug } from "@/lib/services/projects";
-import { getTaskByNumber, getTimeline, type TaskEvent, type TimelineItem } from "@/lib/services/tasks";
+import {
+  getTaskByNumber,
+  getTimeline,
+  listReviewsForTasks,
+  type TaskEvent,
+  type TimelineItem,
+} from "@/lib/services/tasks";
 import {
   PRIORITY_CLASS,
   PRIORITY_LABEL,
@@ -17,6 +29,7 @@ import {
   timeAgo,
 } from "@/lib/ui/labels";
 import { intParam, orNotFound } from "@/lib/ui/load";
+import { tabForStatus } from "@/lib/ui/tabs";
 
 function describeEvent(e: TaskEvent): string {
   switch (e.type) {
@@ -32,6 +45,38 @@ function describeEvent(e: TaskEvent): string {
       return "put it on hold";
     case "hold_released":
       return "released the hold";
+    case "pr_linked":
+      return `linked pull request #${String(e.payload.prNumber ?? "")}`;
+    case "pr_updated":
+      return `pushed new commits (${String(e.payload.sha ?? "")})`;
+    case "pr_closed":
+      return `closed pull request #${String(e.payload.prNumber ?? "")}`;
+    case "pr_merged_outside":
+      return `merged pull request #${String(e.payload.prNumber ?? "")} outside the review flow`;
+    case "checks_updated":
+      return `reported checks ${String(e.payload.status ?? "")}`;
+    case "preview_ready":
+      return "deployed a preview";
+    case "preview_failed":
+      return "failed to deploy a preview";
+    case "review_loop_stopped":
+      return `stopped the review loop after ${String(e.payload.rounds ?? "several")} rounds; the task is on hold for you`;
+    case "run_dispatched":
+      return "started an agent run";
+    case "dispatch_failed":
+      return `could not start an agent run (${String(e.payload.message ?? "")}); the task is on hold`;
+    case "run_stopped":
+      return "stopped the agent run and put the task on hold";
+    case "run_ended_without_review": {
+      const how = String(e.payload.conclusion ?? "ended");
+      return `saw the agent run end (${how}) without a review; the task is on hold`;
+    }
+    case "branch_linked":
+      return `linked branch ${String(e.payload.branch ?? "")}`;
+    case "review_recorded": {
+      const verdict = String(e.payload.verdict ?? "comment").replace("_", " ");
+      return `recorded a review (${verdict}, ${String(e.payload.findings ?? 0)} findings)`;
+    }
     default:
       return e.type.replace(/_/g, " ");
   }
@@ -58,7 +103,7 @@ function Timeline({ items }: { items: TimelineItem[] }) {
                 <span className="font-medium text-fg">{item.comment.author}</span>
                 {item.comment.authorType === "agent" && " (agent)"} commented {timeAgo(item.at)}
               </p>
-              <p className="text-sm whitespace-pre-wrap">{item.comment.body}</p>
+              <MarkdownText>{item.comment.body}</MarkdownText>
             </Card>
           </li>
         ),
@@ -70,7 +115,7 @@ function Timeline({ items }: { items: TimelineItem[] }) {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="flex flex-col gap-2">
-      <h2 className="text-sm font-semibold">{title}</h2>
+      <h3 className="text-sm font-semibold">{title}</h3>
       {children}
     </section>
   );
@@ -87,29 +132,37 @@ function Meta({ label, children }: { label: string; children: React.ReactNode })
 
 export default async function TaskPage({ params }: PageProps<"/projects/[slug]/tasks/[number]">) {
   await requireOwner();
+  await connection(); // Renders at request time: the page shows relative times ("5m ago").
   const { slug, number } = await params;
   const db = getDb();
   const project = await orNotFound(getProjectBySlug(db, slug));
   const task = await orNotFound(getTaskByNumber(db, project.id, intParam(number)));
-  const timeline = await getTimeline(db, task.id);
+  const [timeline, runs, taskReviews] = await Promise.all([
+    getTimeline(db, task.id),
+    listRunsForTask(db, task.id),
+    listReviewsForTasks(db, [task.id]),
+  ]);
   // Merging happens through the review flow once a PR exists (M3), never by a plain button.
-  const transitions = allowedTransitions(task.status, "owner").filter((s) => s !== "merged");
+  // In review, decisions go through the review queue so the PR is merged, commented, or closed too.
+  const transitions =
+    task.status === "in_review" ? [] : allowedTransitions(task.status, "owner").filter((s) => s !== "merged");
   const key = `${project.key}-${task.number}`;
+  const tab = tabForStatus(task.status);
+  const canRunNow =
+    githubConfigured() &&
+    !!project.githubInstallationId &&
+    (task.status === "todo" || task.status === "changes_requested");
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5">
       <div>
         <p className="text-sm text-muted">
-          <Link href="/" className="hover:underline">
-            Projects
-          </Link>{" "}
-          /{" "}
-          <Link href={`/projects/${project.slug}`} className="hover:underline">
-            {project.name}
+          <Link href={`/projects/${project.slug}${tab.path ? `/${tab.path}` : ""}`} className="hover:text-fg hover:underline">
+            {tab.label}
           </Link>{" "}
           / <span className="font-mono">{key}</span>
         </p>
-        <h1 className="mt-1 text-xl font-semibold">{task.title}</h1>
+        <h2 className="mt-1 text-xl font-semibold tracking-tight">{task.title}</h2>
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           <StatusBadge status={task.status} />
           <Badge className={PRIORITY_CLASS[task.priority]}>{PRIORITY_LABEL[task.priority]}</Badge>
@@ -127,17 +180,21 @@ export default async function TaskPage({ params }: PageProps<"/projects/[slug]/t
         <div className="flex min-w-0 flex-col gap-6">
           <Section title="Description">
             <Card className="p-4">
-              <p className={cn("text-sm whitespace-pre-wrap", !task.description && "text-muted")}>
-                {task.description || "No description."}
-              </p>
+              {task.description ? (
+                <MarkdownText>{task.description}</MarkdownText>
+              ) : (
+                <p className="text-sm text-muted">No description.</p>
+              )}
             </Card>
           </Section>
 
           <Section title="Acceptance criteria">
             <Card className="p-4">
-              <p className={cn("text-sm whitespace-pre-wrap", !task.acceptanceCriteria && "text-muted")}>
-                {task.acceptanceCriteria || "None yet. Agents work best with clear criteria."}
-              </p>
+              {task.acceptanceCriteria ? (
+                <MarkdownText>{task.acceptanceCriteria}</MarkdownText>
+              ) : (
+                <p className="text-sm text-muted">None yet. Agents work best with clear criteria.</p>
+              )}
             </Card>
           </Section>
 
@@ -150,6 +207,53 @@ export default async function TaskPage({ params }: PageProps<"/projects/[slug]/t
             </details>
           </Card>
 
+          {taskReviews.length > 0 && (
+            <Section title="Reviews">
+              <div className="flex flex-col gap-3">
+                {taskReviews.map((r) => (
+                  <Card key={r.id} className="flex flex-col gap-2 p-4">
+                    <p className="text-sm">
+                      <span className="font-medium">{r.reviewer}</span>{" "}
+                      <Badge
+                        className={
+                          r.verdict === "request_changes"
+                            ? "text-orange-700 dark:text-orange-300"
+                            : r.verdict === "approve"
+                              ? "text-emerald-700 dark:text-emerald-300"
+                              : "text-muted"
+                        }
+                      >
+                        {r.verdict === "request_changes" ? "Changes requested" : r.verdict === "approve" ? "Recommends approval" : "Comment"}
+                      </Badge>{" "}
+                      <span className="text-xs text-muted">{timeAgo(r.createdAt)}</span>
+                    </p>
+                    {r.body && <MarkdownText>{r.body}</MarkdownText>}
+                    {r.findings.length > 0 && (
+                      <ul className="flex flex-col gap-1 text-sm">
+                        {r.findings.map((f, i) => (
+                          <li key={i} className="flex items-start gap-2">
+                            <Badge className={f.severity === "critical" || f.severity === "major" ? "text-red-600 dark:text-red-400" : "text-muted"}>
+                              {f.severity}
+                            </Badge>
+                            <span>
+                              {f.file && (
+                                <span className="font-mono text-xs text-muted">
+                                  {f.file}
+                                  {f.line ? `:${f.line}` : ""}{" "}
+                                </span>
+                              )}
+                              {f.message}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </Card>
+                ))}
+              </div>
+            </Section>
+          )}
+
           <Section title="Activity">
             <Timeline items={timeline} />
             <CommentForm taskId={task.id} />
@@ -158,8 +262,18 @@ export default async function TaskPage({ params }: PageProps<"/projects/[slug]/t
 
         <aside className="flex flex-col gap-4">
           <Card className="flex flex-col gap-3 p-4">
-            <h2 className="text-sm font-semibold">Status</h2>
+            <h3 className="text-sm font-semibold">Status</h3>
             <StatusBadge status={task.status} />
+            {task.status === "in_review" && (
+              <Link href={`/projects/${project.slug}/review/${task.number}`} className={buttonClass("primary", "sm")}>
+                Review changes
+              </Link>
+            )}
+            {task.status !== "in_review" && task.prNumber && (
+              <Link href={`/projects/${project.slug}/review/${task.number}`} className={buttonClass("secondary", "sm")}>
+                View changes
+              </Link>
+            )}
             {transitions.length > 0 && (
               <div className="flex flex-col gap-1.5">
                 {transitions.map((to) => (
@@ -181,7 +295,7 @@ export default async function TaskPage({ params }: PageProps<"/projects/[slug]/t
           </Card>
 
           <Card className="flex flex-col gap-2 p-4">
-            <h2 className="text-sm font-semibold">Agents</h2>
+            <h3 className="text-sm font-semibold">Agents</h3>
             <p className="text-xs text-muted">
               {task.onHold
                 ? "On hold: agents will not pick up this task."
@@ -194,7 +308,35 @@ export default async function TaskPage({ params }: PageProps<"/projects/[slug]/t
                 {task.onHold ? "Release hold" : "Put on hold"}
               </Button>
             </form>
+            {canRunNow && <RunAgentNowButton taskId={task.id} />}
           </Card>
+
+          {runs.length > 0 && (
+            <Card className="flex flex-col gap-2 p-4">
+              <h3 className="text-sm font-semibold">Agent runs</h3>
+              <ul className="flex flex-col gap-2.5 text-sm">
+                {runs.map((r) => (
+                  <li key={r.id} className="flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="truncate">
+                        {r.githubRunUrl ? (
+                          <a href={r.githubRunUrl} target="_blank" rel="noreferrer" className="hover:underline">
+                            {r.agent}
+                          </a>
+                        ) : (
+                          r.agent
+                        )}{" "}
+                        <span className="text-xs text-muted">({r.role})</span>
+                      </span>
+                      <RunStatusBadge status={r.status} />
+                    </div>
+                    {(r.status === "running" || r.status === "queued") && <StopRunButton runId={r.id} />}
+                    {r.cancelledBy && <span className="text-xs text-muted">Stopped by {r.cancelledBy}</span>}
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
 
           <Card className="p-4">
             <dl className="flex flex-col gap-2">
@@ -204,6 +346,7 @@ export default async function TaskPage({ params }: PageProps<"/projects/[slug]/t
               <Meta label="Created by">
                 {task.source === "agent" ? `${task.createdByAgent ?? "agent"} (agent)` : "You"}
               </Meta>
+              {task.assignee && <Meta label="Assignee">{task.assignee}</Meta>}
               <Meta label="Created">{timeAgo(task.createdAt)}</Meta>
               <Meta label="Updated">{timeAgo(task.updatedAt)}</Meta>
               {task.branchName && (
@@ -218,6 +361,7 @@ export default async function TaskPage({ params }: PageProps<"/projects/[slug]/t
                   </a>
                 </Meta>
               )}
+              {task.productionDeployedAt && <Meta label="In production">{timeAgo(task.productionDeployedAt)}</Meta>}
               {task.previewUrl && (
                 <Meta label="Preview">
                   <a href={task.previewUrl} target="_blank" rel="noreferrer" className="text-accent hover:underline">

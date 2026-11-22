@@ -16,17 +16,21 @@ CI runs all of them on every pull request.
 55433 and 3101, signs in with the development login, and runs the specs in
 [e2e/](../e2e/). Use `npx playwright test --ui` to watch the tests run.
 
+On Windows, run the tests from a path with an upper-case drive letter
+(`D:\...`, not `d:\...`). With a lower-case one, Vitest loads itself twice and
+every suite fails with "Cannot read properties of undefined (reading 'config')".
+
 ## Running the app locally
 
 ```bash
-npm run db:local     # terminal 1: embedded Postgres on localhost:5432, migrations applied
+npm run db:local     # terminal 1: embedded Postgres on 127.0.0.1:54320, migrations applied
 npm run dev          # terminal 2: http://localhost:3000
 ```
 
 `.env.local` needs:
 
 ```bash
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/postgres
+DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54320/postgres
 AUTH_SECRET=<run: npx auth secret>
 AUTH_DEV_LOGIN=<your GitHub login>   # enables "Development login" on the sign-in page
 OWNER_GITHUB_LOGINS=<your GitHub login>
@@ -62,25 +66,56 @@ before merging the milestone.
 - [ ] Dark mode looks right.
 
 ### M2: Agent API
-- [ ] Create and revoke an API token; a revoked token is rejected.
-- [ ] Claude Code on your machine connects to the MCP server and lists tasks.
-- [ ] An agent claims a Todo task; a held task or paused agents refuse the claim.
-- [ ] An agent proposes a task; it lands in "Proposed by agents".
-- [ ] An agent cannot merge, accept proposals, or flip the agents switch.
+- [x] (auto) Create and revoke an API token; a revoked token is rejected.
+- [x] (auto) An MCP client lists tools, claims a task, links a branch, comments, submits for review, proposes a task, and finishes the run; the UI shows all of it.
+- [x] (auto) A reviewer agent requests changes with findings; the task goes back.
+- [x] (auto) A held task or paused agents refuse the claim.
+- [x] (auto) REST: 401 without or with a revoked token, 403 without the scope.
+- [x] (auto) Agents cannot merge or accept proposals (service tests).
+- [ ] Claude Code on your machine connects (see [agent-setup.md](agent-setup.md)) and finishes a small real task.
 
 ### M3: GitHub integration
-- [ ] Install the GitHub App on a test repository and link it to a project.
-- [ ] A PR whose body contains `AgentPlanner: KEY-n` links to the task.
-- [ ] CI status appears on the task.
-- [ ] Approve merges the PR with a merge commit; Request changes comments on it.
-- Local webhooks need a tunnel, for example `npx smee-client` or `cloudflared`.
+Automated tests use a fake GitHub API (`e2e/fake-github.mts`) and signed webhooks.
+- [x] (auto) Webhooks with a bad signature are rejected; duplicates are ignored.
+- [x] (auto) Connect finds the App installation, or explains that it is missing.
+- [x] (auto) A PR referencing `KEY-n` links to the task; checks show in the review queue.
+- [x] (auto) Approve merges with a merge commit at the reviewed commit, and deletes the agent branch.
+- [x] (auto) Approve refuses if new commits arrived, checks fail, or the PR has conflicts.
+- [x] (auto) Request changes comments on the PR; Reject closes it.
+- [x] (auto) A PR merged on GitHub by someone who is not the owner does not count as approval.
+- [ ] Create the real GitHub App ([github-app.md](github-app.md)), install it on a test repository, and connect.
+- [ ] Open a real PR with `AgentPlanner: KEY-n`; it links and shows checks.
+- [ ] Approve it in AgentPlanner; GitHub shows a merge commit by the App.
 
 ### M4: Automated agents
-- [ ] With agents on and auto-dispatch on, a Todo task starts a workflow run.
-- [ ] Global switch off: nothing starts. Task on hold: it is skipped.
-- [ ] Stop cancels the Actions run, keeps the branch, and holds the task.
-- [ ] Request changes re-dispatches the developer agent.
+- [x] (auto) With agents on and auto-dispatch on, a new Todo task dispatches the develop workflow with its key and run id.
+- [x] (auto) Global switch off: nothing starts; switching on starts the waiting task.
+- [x] (auto) Held tasks are skipped; the parallel limit and priority order hold (service tests).
+- [x] (auto) Stop cancels the Actions run and holds the task; the agent's claim is then refused.
+- [x] (auto) Run agent now starts one task with auto-dispatch off.
+- [x] (auto) A run that ends without a review, or a failed dispatch, holds the task.
+- [x] (auto) After 3 agent change requests the task is held for the owner (service test).
+- [ ] Install the workflow templates in a test repository ([agent-workflows.md](agent-workflows.md)).
+- [ ] A real developer run claims the task, opens a PR, and submits it for review.
+- [ ] The reviewer workflow runs on the agent PR and records a review.
+- [ ] Request changes re-dispatches the developer, who updates the same PR.
 
 ### M5: Vercel
-- [ ] The preview URL appears on the task when the PR deploys.
-- [ ] After merge, the production deploy moves the task to Done.
+Vercel's GitHub integration reports deployments to GitHub; AgentPlanner reads
+them from the `deployment_status` webhook (no Vercel webhook or Pro plan needed).
+- [x] (auto) A successful Preview deployment attaches its URL to the task on that branch.
+- [x] (auto) After merge, a successful Production deployment moves the task to Done.
+- [x] (auto) Deployments that started before the merge do not count.
+- [ ] With the real GitHub App subscribed to Deployment status, a PR preview link appears in the review queue.
+- [ ] After approving, the task turns Done when Vercel finishes the production deploy.
+
+### UI redesign
+- [x] (auto) Tabs split tasks into Planned, In progress, Review, and Done, with counts.
+- [x] (auto) Switching tabs is instant: the prefetch already holds the tab's tasks (`instant()` from `@next/playwright`).
+- [x] (auto) The New task dialog adds a task, resets, closes, and Escape dismisses it.
+- [x] (auto) The change browser shows the PR files, commits, and the diff, with reviewer findings on their lines.
+- [x] (auto) Approving, requesting changes, or rejecting from the change browser returns to the review queue.
+- [x] (auto) The theme switch picks light, dark, or system and remembers the choice after a reload.
+- [x] (auto) Descriptions and comments render Markdown; raw HTML is dropped.
+- [ ] With the real GitHub App, the change browser shows a real agent pull request.
+- [ ] Light and dark themes look right on your screens, including a phone.

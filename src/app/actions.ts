@@ -5,10 +5,16 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { devLoginEnabled, requireOwner, signIn, signOut } from "@/auth";
 import { getDb } from "@/lib/db";
-import { TASK_STATUSES } from "@/lib/domain/tasks";
+import { InvalidTransitionError, TASK_STATUSES } from "@/lib/domain/tasks";
 import { ConflictError, NotFoundError, ValidationError } from "@/lib/services/errors";
 import { createProject, updateProjectSettings } from "@/lib/services/projects";
 import { setAgentsEnabled } from "@/lib/services/settings";
+import { createApiToken, revokeApiToken } from "@/lib/services/tokens";
+import { getGitHub, GitHubNotConfiguredError } from "@/lib/github/gateway";
+import { githubConfigured } from "@/lib/github/config";
+import { approveAndMerge, connectRepository, rejectTask, requestChanges } from "@/lib/services/github";
+import { scheduleDispatch } from "@/lib/dispatch-trigger";
+import { dispatchTask, stopRun } from "@/lib/services/dispatch";
 import { addComment, createTask, setTaskHold, transitionTask, updateTask } from "@/lib/services/tasks";
 
 export type FormState = { error?: string; ok?: boolean } | undefined;
@@ -16,7 +22,13 @@ export type FormState = { error?: string; ok?: boolean } | undefined;
 /** Turns expected failures into a message for the form; rethrows anything else. */
 function toFormError(e: unknown): FormState {
   if (e instanceof z.ZodError) return { error: e.issues.map((i) => i.message).join(". ") };
-  if (e instanceof ConflictError || e instanceof ValidationError || e instanceof NotFoundError) {
+  if (
+    e instanceof ConflictError ||
+    e instanceof ValidationError ||
+    e instanceof NotFoundError ||
+    e instanceof GitHubNotConfiguredError ||
+    e instanceof InvalidTransitionError
+  ) {
     return { error: e.message };
   }
   throw e;
@@ -24,9 +36,17 @@ function toFormError(e: unknown): FormState {
 
 function refresh() {
   revalidatePath("/", "layout");
+  // Any owner change can make a task ready for an agent; the dispatcher checks all switches.
+  scheduleDispatch();
 }
 
 const str = (form: FormData, key: string) => String(form.get(key) ?? "");
+
+/** Where to go after a review decision: only a project page in this app, never another site. */
+function reviewDoneHref(form: FormData): string | null {
+  const next = str(form, "next");
+  return /^\/projects\/[a-z0-9-]+\/review$/.test(next) ? next : null;
+}
 
 // --- Auth -------------------------------------------------------------------
 
@@ -176,4 +196,142 @@ export async function addCommentAction(
   }
   refresh();
   return { ok: true };
+}
+
+// --- API tokens ---------------------------------------------------------------
+
+export type TokenFormState = { error?: string; token?: string; name?: string } | undefined;
+
+export async function createApiTokenAction(
+  projectId: string,
+  _prev: TokenFormState,
+  form: FormData,
+): Promise<TokenFormState> {
+  const owner = await requireOwner();
+  try {
+    const { token, record } = await createApiToken(
+      getDb(),
+      projectId,
+      { name: str(form, "name"), scopes: form.getAll("scopes").map(String) },
+      owner,
+    );
+    refresh();
+    return { token, name: record.name };
+  } catch (e) {
+    return toFormError(e);
+  }
+}
+
+export async function revokeApiTokenAction(form: FormData) {
+  const owner = await requireOwner();
+  await revokeApiToken(getDb(), str(form, "tokenId"), owner);
+  refresh();
+}
+
+// --- GitHub review flow -------------------------------------------------------
+
+/** GitHub API errors carry a status and message; show them to the owner. */
+function githubError(e: unknown): FormState {
+  const err = e as { status?: number; message?: string };
+  if (typeof err?.status === "number") return { error: `GitHub: ${err.message ?? `error ${err.status}`}` };
+  return toFormError(e);
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- useActionState passes the previous state
+export async function connectRepositoryAction(projectId: string, _prev: FormState): Promise<FormState> {
+  const owner = await requireOwner();
+  try {
+    await connectRepository(getDb(), getGitHub(), projectId, owner);
+  } catch (e) {
+    return githubError(e);
+  }
+  refresh();
+  return { ok: true };
+}
+
+export async function approveAndMergeAction(_prev: FormState, form: FormData): Promise<FormState> {
+  const owner = await requireOwner();
+  try {
+    await approveAndMerge(getDb(), getGitHub(), str(form, "taskId"), str(form, "headSha") || null, owner);
+  } catch (e) {
+    return githubError(e);
+  }
+  refresh();
+  const next = reviewDoneHref(form);
+  if (next) redirect(next);
+  return { ok: true };
+}
+
+export async function requestChangesAction(_prev: FormState, form: FormData): Promise<FormState> {
+  const owner = await requireOwner();
+  let warning: string | undefined;
+  try {
+    ({ warning } = await requestChanges(
+      getDb(),
+      githubConfigured() ? getGitHub() : null,
+      str(form, "taskId"),
+      str(form, "feedback"),
+      owner,
+    ));
+  } catch (e) {
+    return githubError(e);
+  }
+  refresh();
+  if (warning) return { error: warning };
+  const next = reviewDoneHref(form);
+  if (next) redirect(next);
+  return { ok: true };
+}
+
+export async function rejectTaskAction(_prev: FormState, form: FormData): Promise<FormState> {
+  const owner = await requireOwner();
+  let warning: string | undefined;
+  try {
+    ({ warning } = await rejectTask(
+      getDb(),
+      githubConfigured() ? getGitHub() : null,
+      str(form, "taskId"),
+      str(form, "mode") === "todo" ? "todo" : "cancel",
+      str(form, "reason"),
+      owner,
+    ));
+  } catch (e) {
+    return githubError(e);
+  }
+  refresh();
+  if (warning) return { error: warning };
+  const next = reviewDoneHref(form);
+  if (next) redirect(next);
+  return { ok: true };
+}
+
+// --- Agent runs -----------------------------------------------------------------
+
+export async function dispatchTaskAction(_prev: FormState, form: FormData): Promise<FormState> {
+  const owner = await requireOwner();
+  try {
+    await dispatchTask(getDb(), getGitHub(), str(form, "taskId"), owner);
+  } catch (e) {
+    return githubError(e);
+  }
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+export async function stopRunAction(_prev: FormState, form: FormData): Promise<FormState> {
+  const owner = await requireOwner();
+  let warning: string | undefined;
+  try {
+    ({ warning } = await stopRun(
+      getDb(),
+      githubConfigured() ? getGitHub() : null,
+      str(form, "runId"),
+      str(form, "mode") === "blocked" ? "blocked" : "todo",
+      owner,
+    ));
+  } catch (e) {
+    return githubError(e);
+  }
+  revalidatePath("/", "layout");
+  return warning ? { error: warning } : { ok: true };
 }

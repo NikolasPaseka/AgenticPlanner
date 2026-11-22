@@ -32,6 +32,7 @@ PostgreSQL through Drizzle. Every table has `id` (uuid), `created_at`, and
 | `created_by_user_id`, `created_by_agent` | Who created it |
 | `assignee` | `null`, `owner`, or an agent role |
 | `parent_task_id` | Links follow-ups found during review |
+| `created_by_run_id` | The agent run that proposed the task (proposal limits) |
 | `on_hold` | Boolean. When true, the auto-dispatcher skips the task and agents cannot claim it |
 | `branch_name`, `pr_number`, `pr_url` | Set when work starts and the PR opens |
 | `preview_url`, `checks_status` | Filled from webhooks |
@@ -41,7 +42,8 @@ PostgreSQL through Drizzle. Every table has `id` (uuid), `created_at`, and
 One execution of an agent on a task.
 `task_id`, `role` (`developer`, `reviewer`, `analyzer`), `status` (`queued`,
 `running`, `succeeded`, `failed`, `cancelled`), `github_run_id`,
-`github_run_url`, `summary`, `cost_usd`, `started_at`, `finished_at`,
+`agent` (token name), `api_token_id`, `github_run_url`, `summary`, `cost_usd`,
+`started_at`, `finished_at`,
 `cancelled_by` (set when the owner stops the run).
 
 ### review

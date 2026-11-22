@@ -27,6 +27,9 @@ into `main`, and Vercel deploys it to production.
 | [docs/data-model.md](docs/data-model.md) | Entities, fields, task state machine |
 | [docs/agent-workflow.md](docs/agent-workflow.md) | Agent roles, lifecycle, Git and Vercel pipeline |
 | [docs/api.md](docs/api.md) | REST API, MCP tools for agents, webhooks |
+| [docs/agent-setup.md](docs/agent-setup.md) | Connect Claude Code to a project |
+| [docs/github-app.md](docs/github-app.md) | Create and connect the GitHub App |
+| [docs/agent-workflows.md](docs/agent-workflows.md) | Install agent workflows in a repository |
 | [docs/security.md](docs/security.md) | Auth, tokens, permissions, guardrails |
 | [docs/testing.md](docs/testing.md) | Local development, test layers, per-milestone checklist |
 | [docs/roadmap.md](docs/roadmap.md) | Milestones from MVP to full automation |
@@ -53,7 +56,7 @@ test checklist are in [docs/testing.md](docs/testing.md).
 | `npm test` | Unit and service tests (in-memory Postgres) |
 | `npm run test:e2e` | End-to-end tests in Chrome against a throwaway database |
 | `npm run lint` / `typecheck` / `build` | Static checks that CI also runs |
-| `npm run db:local` | Embedded Postgres on localhost:5432 |
+| `npm run db:local` | Embedded Postgres on 127.0.0.1:54320 |
 | `npm run db:generate` | Create a migration after editing `src/lib/db/schema.ts` |
 | `npm run db:migrate` | Apply migrations to `DATABASE_URL` (e.g. Neon) |
 | `npm run db:studio` | Browse the database |

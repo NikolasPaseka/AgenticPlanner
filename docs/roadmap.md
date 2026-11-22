@@ -18,27 +18,41 @@ merged and deployed to Vercel.
 - Global agents switch and per-task hold in the UI.
 - Local development login, embedded Postgres, and Playwright end-to-end tests.
 
-## M2: Agent API
+## M2: Agent API (built, testing locally)
 - API tokens per project (create, revoke, scopes).
 - REST v1 and the MCP server with the tools in [api.md](api.md).
 - Proposed tasks inbox for agent-created tasks.
 - Manual test: Claude Code on a laptop drives tasks through MCP.
 
-## M3: GitHub integration
+## M3: GitHub integration (built, testing locally)
 - GitHub App: install flow, link project to repo.
 - Webhooks: link PRs to tasks, show CI status.
 - Review queue page: PR, checks, findings, approve, request changes, reject.
 - Approve merges through the API; reject closes the PR.
 
-## M4: Automated agents
+## M4: Automated agents (built, testing locally)
 - Workflow templates for developer, reviewer, analyzer.
 - Auto-dispatcher (event-driven plus Vercel Cron) starts the developer workflow for the top `todo` task; manual dispatch and pause per project; agent runs page.
 - Owner controls: global agents switch in the header, Stop button that cancels a running GitHub Actions run, and an "on hold" flag per task.
 - Request changes re-dispatches the developer with feedback.
 - Reviewer runs automatically on agent PRs.
 
-## M5: Vercel and polish
-- Vercel webhooks: preview URL on tasks, `done` on production deploy.
-- Auto-dispatch option, parallel run limits, cost tracking.
-- Notifications (email or push) for blocked tasks and review requests.
-- Dogfooding: AgentPlanner manages its own repo.
+## M5: Vercel and polish (built, testing locally)
+- Preview URL on tasks and Done on production deploy, from GitHub
+  `deployment_status` events sent by Vercel's GitHub integration.
+- Auto-dispatch, parallel run limits, and run cost reporting (done in M4).
+
+## UI redesign (built, testing locally)
+- Project tabs by stage with counts: Planned, In progress, Review, Done,
+  Runs, Settings. Creating tasks and projects moved into dialogs.
+- Change browser for each task in review: the agent's summary, the
+  reviewer's findings placed on diff lines, commits, and the decision.
+- Light, dark, and system themes with a switch in the header.
+- Tabs switch instantly: their content is prefetched (decision 22).
+- Markdown in descriptions, comments, agent summaries, and reviews.
+
+## Next (needs decisions)
+- Notifications for blocked tasks and review requests: email (e.g. Resend),
+  web push, or Slack. Needs a provider choice.
+- Dogfooding: AgentPlanner manages its own repository. Needs the GitHub App,
+  secrets, and workflow templates installed in this repository.

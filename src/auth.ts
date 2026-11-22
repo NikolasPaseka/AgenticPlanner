@@ -1,22 +1,14 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import GitHub from "next-auth/providers/github";
+import { cacheLife } from "next/cache";
 import { redirect } from "next/navigation";
-import { connection } from "next/server";
 import { getDb } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import type { Actor } from "@/lib/services/actor";
+import { isOwnerLogin } from "@/lib/services/owners";
 
-export function ownerLogins(): string[] {
-  return (process.env.OWNER_GITHUB_LOGINS ?? "")
-    .split(",")
-    .map((l) => l.trim().toLowerCase())
-    .filter(Boolean);
-}
-
-export function isOwnerLogin(login: string | null | undefined): boolean {
-  return !!login && ownerLogins().includes(login.toLowerCase());
-}
+export { isOwnerLogin };
 
 /**
  * Local-only sign-in without GitHub, for development and screenshots.
@@ -74,14 +66,24 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 });
 
 /**
+ * The signed-in login, read from the session cookie on every server request.
+ * `use cache: private` never stores the result on the server; it only lets the
+ * browser keep prefetched pages for `stale` seconds, so tab switches are instant.
+ */
+async function sessionLogin(): Promise<string | null> {
+  "use cache: private";
+  cacheLife({ stale: 30 });
+  const session = await auth();
+  return session?.user?.login ?? null;
+}
+
+/**
  * Returns the owner as an actor, or redirects to sign-in.
  * Call this at the start of every page and server action: server actions are
  * reachable by direct POST, so layout checks alone are not enough.
  */
 export async function requireOwner(): Promise<Actor> {
-  await connection(); // Per-request: Auth.js uses crypto, which must not run during prerender.
-  const session = await auth();
-  const login = session?.user?.login;
+  const login = await sessionLogin();
   if (!login) redirect("/signin");
   if (!isOwnerLogin(login) && !(devLoginEnabled && login === process.env.AUTH_DEV_LOGIN)) {
     redirect("/signin?error=AccessDenied");

@@ -5,26 +5,40 @@ import { setAgentsEnabledAction, signOutAction } from "@/app/actions";
 import { getDb } from "@/lib/db";
 import { getAppSettings } from "@/lib/services/settings";
 import { timeAgo } from "@/lib/ui/labels";
+import { ThemeToggle } from "./theme";
 import { cn } from "./ui";
 
 function Logo() {
   return (
-    <Link href="/" className="flex items-center gap-2 font-semibold">
-      <span aria-hidden className="grid size-6 place-items-center rounded-md bg-accent text-xs text-accent-fg">
+    <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight">
+      <span
+        aria-hidden
+        className="grid size-7 place-items-center rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 text-[11px] font-bold text-white shadow-card"
+      >
         AP
       </span>
-      AgentPlanner
+      <span className="hidden sm:inline">AgentPlanner</span>
     </Link>
+  );
+}
+
+function Bar({ children }: { children?: React.ReactNode }) {
+  return (
+    <header className="sticky top-0 z-20 border-b border-border bg-surface/85 backdrop-blur">
+      <div className="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4">
+        <Logo />
+        <div className="flex-1" />
+        {children}
+      </div>
+    </header>
   );
 }
 
 export function HeaderShell() {
   return (
-    <header className="border-b border-border bg-surface">
-      <div className="mx-auto flex h-14 max-w-5xl items-center px-4">
-        <Logo />
-      </div>
-    </header>
+    <Bar>
+      <ThemeToggle />
+    </Bar>
   );
 }
 
@@ -38,20 +52,14 @@ function AgentsSwitch({ enabled }: { enabled: boolean }) {
         role="switch"
         aria-checked={enabled}
         title={enabled ? "Pause all agents" : "Resume all agents"}
-        className="flex shrink-0 items-center gap-2 rounded-full border border-border px-2.5 py-1 text-sm hover:bg-surface-2"
+        className="flex shrink-0 items-center gap-2 rounded-full border border-border bg-surface px-2.5 py-1 text-sm shadow-card hover:bg-surface-2"
       >
         <span
           aria-hidden
-          className={cn(
-            "relative h-4 w-7 rounded-full transition",
-            enabled ? "bg-emerald-500" : "bg-zinc-400 dark:bg-zinc-600",
-          )}
+          className={cn("relative h-4 w-7 rounded-full transition", enabled ? "bg-emerald-500" : "bg-zinc-400 dark:bg-zinc-600")}
         >
           <span
-            className={cn(
-              "absolute top-0.5 size-3 rounded-full bg-white transition-all",
-              enabled ? "left-3.5" : "left-0.5",
-            )}
+            className={cn("absolute top-0.5 size-3 rounded-full bg-white transition-all", enabled ? "left-3.5" : "left-0.5")}
           />
         </span>
         <span className="whitespace-nowrap">
@@ -69,30 +77,27 @@ export async function Header() {
   const settings = login ? await getAppSettings(getDb()) : null;
   return (
     <>
-      <header className="border-b border-border bg-surface">
-        <div className="mx-auto flex h-14 max-w-5xl items-center gap-3 px-4">
-          <Logo />
-          <div className="flex-1" />
-          {settings && <AgentsSwitch enabled={settings.agentsEnabled} />}
-          {login && (
-            <form action={signOutAction} className="flex items-center gap-2">
-              <span className="hidden text-sm text-muted sm:inline">{login}</span>
-              <button type="submit" className="text-sm whitespace-nowrap text-muted underline-offset-2 hover:underline">
-                Sign out
-              </button>
-            </form>
-          )}
-        </div>
-      </header>
+      <Bar>
+        {settings && <AgentsSwitch enabled={settings.agentsEnabled} />}
+        <ThemeToggle />
+        {login && (
+          <form action={signOutAction} className="flex items-center gap-2 border-l border-border pl-3">
+            <span className="hidden text-sm text-muted md:inline">{login}</span>
+            <button type="submit" className="text-sm whitespace-nowrap text-muted underline-offset-2 hover:text-fg hover:underline">
+              Sign out
+            </button>
+          </form>
+        )}
+      </Bar>
       {settings && !settings.agentsEnabled && (
         <div
           role="status"
-          className="border-b border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200"
+          className="border-b border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/60 dark:text-amber-200"
         >
-          <p className="mx-auto max-w-5xl px-4 py-2 text-sm">
+          <p className="mx-auto max-w-6xl px-4 py-2 text-sm">
             Agents are paused in all projects
-            {settings.agentsPausedAt && ` since ${timeAgo(settings.agentsPausedAt)}`}. No new agent runs will
-            start until you switch them back on.
+            {settings.agentsPausedAt && ` since ${timeAgo(settings.agentsPausedAt)}`}. No new agent runs will start
+            until you switch them back on.
           </p>
         </div>
       )}

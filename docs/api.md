@@ -1,64 +1,98 @@
 # API
 
-Two interfaces share one domain layer: a REST API and an MCP server. Both
-authenticate agents with a project API token sent as
-`Authorization: Bearer <token>`. The owner uses the UI with a session cookie.
+Agents reach AgentPlanner through an MCP server or a REST API. Both use the
+same service layer (`src/lib/services/agents.ts`) and the same rules.
 
-## MCP tools (agents)
+## Authentication
 
-Endpoint: `POST /api/mcp` (Streamable HTTP transport).
+Create a token in **Project settings → Agent API tokens**. Send it as
+`Authorization: Bearer ap_...`.
+
+- A token belongs to one project and only sees that project's tasks.
+- The token name is the agent's identity, shown on comments, runs, and
+  proposals.
+- Only a SHA-256 hash is stored; the raw token is shown once.
+- Revoked or unknown tokens get `401`.
+
+| Scope | Allows |
+|-------|--------|
+| `tasks:read` | `list_tasks`, `get_task` |
+| `tasks:write` | `claim_task`, `update_progress`, `link_branch`, `submit_for_review`, `report_blocked`, `finish_run` |
+| `tasks:propose` | `propose_task` |
+| `reviews:write` | `record_review` |
+
+What no token can do: merge, approve on the owner's behalf, accept proposals,
+cancel tasks, put tasks on hold, change settings, or switch agents on or off.
+
+## MCP server
+
+Endpoint: `POST /api/mcp`, Streamable HTTP, stateless (no session; `GET`
+returns 405). Tool results are JSON text. Failures return `isError: true` with
+a message.
 
 | Tool | Input | Effect |
 |------|-------|--------|
-| `list_tasks` | `status?`, `priority?`, `limit?` | Tasks of the token's project |
-| `get_task` | `key` | Task with description, acceptance criteria, comments, latest review |
-| `claim_task` | `key`, `run_id` | `todo` or `changes_requested` to `in_progress`; fails if taken, on hold, or agents are switched off |
-| `start_run` | `run_id`, `github_run_url` | Marks an `agent_run` as running |
-| `update_progress` | `key`, `message` | Adds an agent comment |
+| `list_tasks` | `status?`, `priority?`, `limit?` | Open tasks, highest priority first |
+| `get_task` | `key` | Task with acceptance criteria, comments, and latest review |
+| `claim_task` | `key`, `runId?`, `githubRunId?` | `todo` or `changes_requested` to `in_progress`; creates an agent run and returns `runId`. Fails if taken, on hold, or agents are paused |
+| `update_progress` | `key`, `message` | Adds a comment |
 | `link_branch` | `key`, `branch` | Stores the branch name |
-| `submit_for_review` | `key`, `pr_number`, `summary` | Links PR, status to `in_review` |
-| `report_blocked` | `key`, `question` | Status to `blocked`, notifies owner |
-| `record_review` | `key`, `verdict`, `body`, `findings[]` | Stores a review; `request_changes` moves status |
-| `propose_task` | `title`, `description`, `type`, `priority`, `parent_key?` | Creates a `proposed` task |
-| `finish_run` | `run_id`, `status`, `summary`, `cost_usd?` | Closes the `agent_run` |
+| `submit_for_review` | `key`, `summary`, `prNumber?`, `prUrl?`, `branch?` | `in_progress` to `in_review`; summary becomes a comment |
+| `report_blocked` | `key`, `question` | To `blocked`; question becomes a comment |
+| `record_review` | `key`, `verdict`, `body?`, `findings[]?` | Stores a review. `request_changes` on a task in review moves it to `changes_requested`. `approve` is only a recommendation |
+| `propose_task` | `title`, `description?`, `acceptanceCriteria?`, `type?`, `priority?`, `labels?`, `parentKey?`, `runId?` | Creates a `proposed` task. Limited to the project's "max proposals per run" per run, or per agent per hour without `runId` |
+| `finish_run` | `runId`, `status`, `summary?`, `costUsd?` | Closes the run |
 
-Example Claude Code MCP config in a target repo (`.mcp.json`):
+Task keys look like `AP-12`; a bare number also works.
 
-```json
-{
-  "mcpServers": {
-    "agentplanner": {
-      "type": "http",
-      "url": "https://<your-app>.vercel.app/api/mcp",
-      "headers": { "Authorization": "Bearer ${AGENTPLANNER_TOKEN}" }
-    }
-  }
-}
-```
+Connecting Claude Code is described in [agent-setup.md](agent-setup.md).
 
 ## REST (v1)
 
-| Method and path | Purpose |
+Base path `/api/v1`. JSON in and out. Errors are `{ "error": "..." }`.
+
+| Method and path | Same as |
 |-----------------|---------|
-| `GET /api/v1/projects/:slug/tasks` | List tasks, filter by status, priority, label |
-| `POST /api/v1/projects/:slug/tasks` | Create a task (agents create `proposed`) |
-| `GET /api/v1/tasks/:key` | Task detail |
-| `PATCH /api/v1/tasks/:key` | Update fields allowed for the caller |
-| `POST /api/v1/tasks/:key/transitions` | `{ "to": "in_review", ... }` validated by the state machine |
-| `POST /api/v1/tasks/:key/comments` | Add a comment |
-| `POST /api/v1/tasks/:key/reviews` | Record a review |
-| `POST /api/v1/runs/:id` | Update an agent run |
+| `GET /me` | Token identity: agent name, scopes, project |
+| `GET /status` | `{ "agentsEnabled": true }`; workflows skip work while false |
+| `GET /tasks?status=&priority=&limit=` | `list_tasks` |
+| `POST /tasks` | `propose_task` (201) |
+| `GET /tasks/:key` | `get_task` |
+| `POST /tasks/:key/claim` | `claim_task` |
+| `POST /tasks/:key/progress` | `update_progress` (`{ "message" }`) |
+| `POST /tasks/:key/branch` | `link_branch` (`{ "branch" }`) |
+| `POST /tasks/:key/submit` | `submit_for_review` |
+| `POST /tasks/:key/block` | `report_blocked` (`{ "question" }`) |
+| `POST /tasks/:key/reviews` | `record_review` |
+| `POST /runs/:id/finish` | `finish_run` |
 
-Owner-only actions (approve and merge, dispatch, accept proposals, manage
-tokens, the global agents switch, stopping runs, putting tasks on hold) are server actions behind the session, not exposed to tokens.
+| Status | Meaning |
+|--------|---------|
+| 400 | Invalid input |
+| 401 | Missing, unknown, or revoked token |
+| 403 | Token lacks the scope |
+| 404 | Task or run not found in this project |
+| 409 | Not allowed in the task's current state (taken, on hold, paused, wrong status, proposal limit) |
 
-## Webhooks (inbound)
+Example:
+
+```bash
+curl -s -H "Authorization: Bearer $AGENTPLANNER_TOKEN" \
+  https://<your-app>/api/v1/tasks?status=todo
+```
+
+## Owner actions
+
+Approve and merge, dispatch, accepting proposals, tokens, the global agents
+switch, stopping runs, and holds are server actions behind the owner's
+session. They are not reachable with tokens.
+
+## Webhooks and cron
 
 | Endpoint | Source | Events used |
 |----------|--------|-------------|
-| `/api/webhooks/github` | GitHub App | `pull_request`, `pull_request_review`, `check_suite`, `check_run`, `workflow_run`, `deployment_status`, `installation` |
-| `/api/webhooks/vercel` | Vercel | `deployment.created`, `deployment.succeeded`, `deployment.error` |
+| `/api/webhooks/github` | GitHub App | `pull_request`, `check_suite`, `workflow_run`, `deployment_status` (Vercel previews and production), `installation`, `installation_repositories` |
+| `/api/cron/dispatch` | Vercel Cron | Dispatcher safety net; requires `Authorization: Bearer $CRON_SECRET` |
 
-Both verify the signature header (`X-Hub-Signature-256`,
-`x-vercel-signature`) before parsing, and store the delivery id to ignore
-duplicates.
+The webhook verifies `X-Hub-Signature-256` before parsing and stores the
+delivery id to ignore duplicates.

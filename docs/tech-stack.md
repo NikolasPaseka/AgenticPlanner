@@ -8,7 +8,7 @@ MongoDB, PostgreSQL.
 | Layer | Choice | Why |
 |-------|--------|-----|
 | Framework | **Next.js (App Router) + TypeScript** | Native on Vercel. Server actions and route handlers cover UI and API in one app. |
-| UI | **Tailwind CSS** with small hand-written components | Vertical task list grouped by status, priority, or type. No kanban. |
+| UI | **Tailwind CSS** with small hand-written components | Tabs by stage, each a vertical task list grouped by status, priority, or type. No kanban. Light and dark themes. |
 | Database | **PostgreSQL on Neon** (Vercel Marketplace) | Relational data, transactional status changes, a database branch per preview deploy. |
 | ORM and migrations | **Drizzle ORM** + drizzle-kit | Typed SQL, light runtime, works well on serverless. Neon WebSocket pool for transactions. |
 | Local database | **PGlite** (`npm run db:local`) | Real Postgres in-process; no Docker or Neon needed for development. |
@@ -21,7 +21,7 @@ MongoDB, PostgreSQL.
 | Background work | Webhook handlers + Vercel Cron; Inngest if it grows | No extra infrastructure in v1. |
 | Validation | Zod | One schema for forms, REST, and MCP tools. |
 | Testing | Vitest + PGlite, Playwright | Unit and service tests against in-memory Postgres; end-to-end in Chrome. See [testing.md](testing.md). |
-| Hosting | Vercel: preview per PR, production on `main` | The same pipeline the app manages for other projects. |
+| Hosting | Vercel: preview per PR, production on `main`; functions in `cle1`, next to Neon in `us-east-2` | The same pipeline the app manages for other projects. If you move the database, change `regions` in `vercel.json` to match. |
 
 ## PostgreSQL vs MongoDB
 
